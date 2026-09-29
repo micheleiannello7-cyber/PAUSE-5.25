@@ -194,11 +194,20 @@ export default function DeepDive() {
     scrollRef.current?.scrollTo({ y: best, animated: true });
     if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
   }, [headerBottom, scrollRef, autoY]);
-  // Sul web non arrivano gli eventi di fine scorrimento: si aspetta che lo
-  // scroll resti fermo per un attimo brevissimo.
+  // Sul web non arrivano gli eventi di fine scorrimento: si stima la velocità
+  // dai campioni di scroll e, appena lo scorrimento rallenta/si ferma, si
+  // allinea subito (quasi immediato) invece di aspettare un ritardo fisso.
+  const webLast = useRef<{ y: number; t: number }>({ y: 0, t: 0 });
   const scheduleSnap = useCallback((y: number) => {
+    const now = Date.now();
+    const prev = webLast.current;
+    const dt = now - prev.t;
+    const v = dt > 0 ? Math.abs(y - prev.y) / dt : 0; // px per ms
+    webLast.current = { y, t: now };
     if (snapTimer.current) clearTimeout(snapTimer.current);
-    snapTimer.current = setTimeout(() => snapNear(y), 90);
+    // Fermo o quasi → allinea subito; ancora in movimento → attesa minima.
+    const delay = v < 0.08 ? 16 : 55;
+    snapTimer.current = setTimeout(() => snapNear(y), delay);
   }, [snapNear]);
   useEffect(() => () => { if (snapTimer.current) clearTimeout(snapTimer.current); }, []);
 

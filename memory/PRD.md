@@ -321,3 +321,8 @@ Solo presentazione (nessuna modifica backend/contenuti):
 - `deep-dive/[id].tsx`: debounce web 90ms; raggio asimmetrico forward min(320, 36%h) / backward min(380, 44%h); `Haptics.impactAsync(Light)` solo nativo allo snap.
 - `home-story-deck.tsx`: nessuna vibrazione allo swipe del mazzo; haptic Light solo al tocco che apre una storia.
 - Test: iteration_6.json tutto PASS.
+
+## Ripristino da repo GitHub + autocentraggio quasi immediato (giugno 2026, fork)
+- Progetto ripristinato da https://github.com/micheleiannello7-cyber/PAUSE-5.24 ; seed DB: 12 categorie, 430 storie. TTS (ElevenLabs), Stripe, Fal.ai lasciati DISATTIVATI su richiesta utente.
+- `deep-dive/[id].tsx`: sul web `scheduleSnap` stima la velocità dai campioni di scroll (px/ms): fermo/quasi fermo → snap dopo 16ms, in movimento → 55ms (prima debounce fisso 90ms). Nativo: `onEndDrag` (velocità <0.05) e `onMomentumEnd` → snap immediato.
+- Stato: in attesa di verifica utente sulla reattività dell'autocentraggio.
