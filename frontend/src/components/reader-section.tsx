@@ -2,6 +2,7 @@
 // vive direttamente sul fondo, senza card. Numero del capitolo grande e quasi
 // trasparente come elemento grafico, occhiello "CAPITOLO X" nel colore del
 // tema, titolo, corpo in paragrafi brevi. Nessun contenuto extra.
+import { useState } from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 
@@ -13,6 +14,11 @@ import { HighlightedTitle } from "@/src/components/highlighted-title";
 // una riga confortevole, su telefono usa tutta la larghezza meno i margini.
 export const READER_MAX_W = 640;
 const LONG_PARAGRAPH = 520;
+// Geometria della sezione (deve coincidere con gli stili qui sotto) e spazio
+// riservato in fondo all'anticipazione del capitolo seguente (divisore + numero + titolo su due righe).
+const SECTION_PAD_TOP = spacing.xxl + spacing.md;
+const SECTION_PAD_BOTTOM = spacing.xl;
+const PREVIEW_RESERVE = 170;
 
 // Solo presentazione: il testo resta identico, ma un capitolo molto lungo
 // viene mostrato in due paragrafi spezzati alla fine di una frase.
@@ -59,12 +65,14 @@ export function stripStepPrefix(title: string): string {
 // in fondo — se c'è un capitolo dopo — solo il suo numero e il titolo intero,
 // attenuati: un'anticipazione, mai il testo. Il capitolo successivo vero inizia
 // alla schermata seguente (la lettura avanza a capitoli, non a scorrimento).
-export function ChapterSection({ chapter, story, eyebrow, next, minHeight }: {
+export function ChapterSection({ chapter, story, eyebrow, next, minHeight, pageOverlap = 0 }: {
   chapter: Chapter; story: Story; eyebrow: string;
   /** Capitolo seguente (anticipazione in fondo alla schermata). */
   next?: Chapter | null;
   /** Altezza della schermata di lettura: il capitolo la riempie e l'anticipazione poggia sul fondo. */
   minHeight?: number;
+  /** Capitoli su più schermate: di quanto la schermata seguente riprende la precedente (barra + una riga), così nessuna riga resta nascosta. */
+  pageOverlap?: number;
 }) {
   const styles = useStyles();
   const { colors } = useTheme();
@@ -72,8 +80,17 @@ export function ChapterSection({ chapter, story, eyebrow, next, minHeight }: {
   // corrente dell'app (base = cyan), mai la categoria della storia.
   const tint = colors.brand;
   const number = String(chapter.number).padStart(2, "0");
+  // Testo più alto di una schermata (caratteri grandi, telefoni bassi): il
+  // capitolo occupa un numero intero di schermate, così l'anticipazione resta
+  // in fondo all'ultima e il capitolo seguente inizia sempre su una schermata
+  // nuova — mai la stessa intestazione due volte di seguito.
+  const [contentH, setContentH] = useState(0);
+  const total = SECTION_PAD_TOP + contentH + (next ? PREVIEW_RESERVE : 0) + SECTION_PAD_BOTTOM;
+  const pages = minHeight && contentH > 0 ? Math.max(1, Math.ceil((total - pageOverlap) / (minHeight - pageOverlap))) : 1;
+  const sectionH = minHeight ? pages * minHeight - (pages - 1) * pageOverlap : undefined;
   return (
-    <View style={[styles.section, minHeight ? { minHeight } : null]} testID={`deep-dive-chapter-${chapter.number}`}>
+    <View style={[styles.section, sectionH ? { minHeight: sectionH } : null]} testID={`deep-dive-chapter-${chapter.number}`}>
+      <View style={styles.content} onLayout={(e) => { const h = Math.ceil(e.nativeEvent.layout.height); if (h !== contentH) setContentH(h); }}>
       <View>
         {/* Numero grande e quasi trasparente: elemento grafico, non informazione. */}
         <Text style={[styles.bigNumber, { color: withAlpha(tint, 0.13) }]} pointerEvents="none" testID={`reader-chapter-number-${chapter.number}`}>{number}</Text>
@@ -89,6 +106,7 @@ export function ChapterSection({ chapter, story, eyebrow, next, minHeight }: {
         {splitParagraphs(chapter.body).map((p, i) => (
           <Text key={i} style={styles.paragraph}>{p}</Text>
         ))}
+      </View>
       </View>
       {next ? (
         <View style={styles.preview} testID={`reader-chapter-preview-${next.number}`}>
@@ -125,6 +143,7 @@ const useStyles = makeStyles((colors) => ({
   title: {
     color: colors.textWarm, fontFamily: typography.displayBold, fontSize: 31, lineHeight: 37, letterSpacing: -0.7,
   },
+  content: { gap: spacing.sm + 2 },
   body: { gap: spacing.md + 2, marginTop: spacing.sm },
   // Anticipazione del capitolo seguente: sul fondo della schermata, attenuata.
   preview: { marginTop: "auto", paddingTop: spacing.xl },

@@ -345,3 +345,6 @@ Solo presentazione (nessuna modifica backend/contenuti):
 ## Transizione: arrivo fluido di titolo e griglia (giugno 2026, fork)
 - `story-morph.tsx`: MORPH_DURATION 680, MORPH_EASING `Easing.inOut(Easing.sin)` (niente coda quasi ferma); apertura: lettore montato a OPEN_COMMIT_AT 0.86 della corsa (solo se storia in cache) → scambio immediato a fine corsa; chiusura: `hostDismiss` (fade 150ms) avviato 150ms prima della fine → fusione con la card reale, `hostClear` a fine corsa come sicurezza.
 - `deep-dive/[id].tsx`: anche ReaderEndingBackdrop e StoryShareCard (offscreen) montati solo con `chaptersReady`.
+
+## Capitoli su più schermate senza duplicati (giugno 2026, fork)
+- Bug: con testo più alto di una schermata il passo parziale mostrava l'anticipazione "05" seguita dal vero capitolo 05. Fix `reader-section.tsx`: il capitolo misura il proprio contenuto e occupa un numero intero di schermate, `sectionH = pages*minH − (pages−1)*pageOverlap` (overlap = headerBottom + 16 così nessuna riga resta sotto la barra); anticipazione sempre in fondo all'ultima schermata. `deep-dive`: passo parziale = viewH − pageOverlap, OVERFLOW_TOL 24; apertura→cap.1 e →apertura sempre salto pieno; se l'altezza dello ScrollView cambia (barra browser) si riallinea alla sezione corrente.

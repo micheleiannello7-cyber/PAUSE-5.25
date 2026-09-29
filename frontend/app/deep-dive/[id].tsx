@@ -43,9 +43,9 @@ function parseRect(value?: string): MorphRect | null {
 
 // Spostamento del dito (punti) oltre il quale il gesto verticale cambia sezione subito.
 const STEP_TRIGGER = 28;
-// Una sezione più alta della schermata di oltre questa tolleranza si legge in
-// due passi (prima una schermata parziale, poi il capitolo seguente).
-const OVERFLOW_TOL = 80;
+// Un capitolo più alto di una schermata occupa più schermate intere (vedi
+// ChapterSection): si avanza di una schermata alla volta, poi al capitolo seguente.
+const OVERFLOW_TOL = 24;
 
 // Lettura editoriale continua: un'unica pagina verticale — grande copertina,
 // titolo, tre dati, introduzione, poi i capitoli uno dopo l'altro direttamente
@@ -194,6 +194,9 @@ export default function DeepDive() {
   // di una schermata parziale, poi al capitolo seguente.
   const pageHRef = useRef(winH);
   const maxYRef = useRef(0);
+  // Capitoli su più schermate: la schermata seguente riprende la precedente di
+  // barra + una riga, così nessuna riga resta nascosta sotto la barra.
+  const pageOverlap = headerBottom + spacing.lg;
   const step = useCallback((dir: 1 | -1) => {
     const maxY = maxYRef.current;
     const clampY = (v: number) => (maxY > 0 ? Math.min(v, maxY) : v);
@@ -204,11 +207,12 @@ export default function DeepDive() {
     if (dir > 0) {
       const next = targets.find((t) => t > y + 4);
       if (next === undefined) return;
-      target = next - y > viewH + OVERFLOW_TOL ? y + viewH * 0.8 : next;
+      // L'apertura è sempre una schermata sola: da lì si va dritti al capitolo 1.
+      target = y < targets[1] || next - y <= viewH + OVERFLOW_TOL ? next : y + viewH - pageOverlap;
     } else {
       const prev = [...targets].reverse().find((t) => t < y - 4);
       if (prev === undefined) return;
-      target = y - prev > viewH + OVERFLOW_TOL ? y - viewH * 0.8 : prev;
+      target = prev === 0 || y - prev <= viewH + OVERFLOW_TOL ? prev : y - (viewH - pageOverlap);
     }
     target = clampY(Math.max(0, target));
     if (Math.abs(target - y) < 1) return;
@@ -217,7 +221,7 @@ export default function DeepDive() {
     scrollRef.current?.scrollTo({ y: target, animated: true });
     if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [headerBottom, scrollRef, autoY]);
+  }, [headerBottom, pageOverlap, scrollRef, autoY]);
   const stepRef = useRef(step);
   stepRef.current = step;
   // Gesto verticale: scatta a STEP_TRIGGER punti di spostamento (o al
@@ -291,9 +295,20 @@ export default function DeepDive() {
     },
   });
 
+  // Se l'altezza cambia a lettura in corso (browser: barra degli indirizzi che
+  // si nasconde; tastiera; rotazione) le schermate si ridisegnano con la nuova
+  // misura e la pagina si riallinea al capitolo corrente.
+  const sectionRef = useRef(0);
+  sectionRef.current = section;
+  const layoutSeen = useRef(false);
   const onScrollLayout = (e: LayoutChangeEvent) => {
     const h = Math.round(e.nativeEvent.layout.height);
-    if (h > 0 && h !== pageH) { setPageH(h); pageHSV.value = h; pageHRef.current = h; }
+    if (h > 0 && h !== pageHRef.current) {
+      const resnap = layoutSeen.current && sectionRef.current > 0;
+      setPageH(h); pageHSV.value = h; pageHRef.current = h;
+      if (resnap) requestAnimationFrame(() => scrollToSection(sectionRef.current, false));
+    }
+    layoutSeen.current = true;
   };
   const onContentSizeChange = (_w: number, h: number) => { maxYRef.current = Math.max(0, h - pageHRef.current); };
   // Apertura diretta su un capitolo (`start=1`): posiziona senza animazione.
@@ -467,7 +482,7 @@ export default function DeepDive() {
 
           {chaptersReady ? story.chapters.map((c, i) => (
             <View key={c.number} onLayout={(e) => onSectionLayout(i, e)} testID={`deep-dive-page-chapter-${c.number}`}>
-              <ChapterSection chapter={c} story={story} eyebrow={t.chapter} next={story.chapters[i + 1] ?? null} minHeight={pageH - headerBottom} />
+              <ChapterSection chapter={c} story={story} eyebrow={t.chapter} next={story.chapters[i + 1] ?? null} minHeight={pageH - headerBottom} pageOverlap={pageOverlap} />
             </View>
           )) : null}
 

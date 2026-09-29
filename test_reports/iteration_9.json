@@ -1,0 +1,91 @@
+{
+  "summary": "Frontend-only verification of reader multi-screen chapter fix on /deep-dive/sky-blue-sunset-orange. NORMAL viewport 390x844 PASSES: wheel produces exact sequence [788, 1568, 2348, 3128, 3908, 4688, 5460] with labels 01/06..06/06, and preview-2 sits at bottom of chapter 1 (top=691, bottom=812) while eyebrow-2 (real ch2 header, top=880) is outside the viewport - no duplicate. SMALL viewport 390x600 FAILS on TWO of the four acceptance points: (a) the observed wheel sequence is [544, 1000, 1536, 1992, 2528, 2984, 3520] - a consistent -27/-29 px offset from the expected [571, 1027, 1565, 2021, 2557, 3013, 3549] (delta well above the ±6 px tolerance stated in the acceptance criteria); (b) at EVERY chapter-transition screen (stops #3, #5, #7 - i.e. the first screen of chapters 2, 3, 4), the previous chapter's preview element AND the new chapter's real eyebrow both have bounding rects intersecting the viewport 0..600 at the same time (preview at top~-40/bottom~81, eyebrow at top~149/bottom~198). This is the exact 'duplicate chapter header' pattern the fix was intended to eliminate under the strict rect-overlap criterion (the preview is visually masked behind the sticky reader-header, but the DOM rects still overlap by ~81 px above headerBottom). Additionally the header label at stop #7 shows 06/06 instead of 04/06 (current-section detector jumps to ending on small viewport). Reader-back returns to /discover cleanly on both viewports and 0 console errors / 0 pageerrors observed on either viewport. UP wheel sequence is symmetric back to 0 on small viewport.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "ChapterSection preview vs next-chapter eyebrow (390x600)",
+        "issue": "At each chapter-transition screen (scrollTop 1536, 2528, 3520 on 390x600), the preview element of the new chapter (rendered as the bottom of previous chapter's last screen) still has its DOM bounding rect intersecting viewport [0..600] simultaneously with the real chapter eyebrow of the same chapter. Preview rect: top=-40, bottom=81 (81 px still inside viewport, sitting behind the ~64px sticky header). Real eyebrow rect: top=149, bottom=198 (fully inside). Per the strict acceptance criterion (rect-overlap only), this is a duplicate-header failure. Visually the preview text is masked by the sticky reader header, so a user does not actually see two headers, but the fix's stated goal 'each chapter section now spans an integer number of screens... with the preview always at the bottom of its last screen' is not satisfied by ~27px on this viewport. Root cause: in reader-section.tsx L89, sectionH = pages * minHeight - (pages-1) * pageOverlap; in deep-dive/[id].tsx L199 pageOverlap = headerBottom + spacing.lg (24) whereas the problem statement's math says overlap = headerBottom + 16 (spacing.md). The 8 px lg-vs-md mismatch plus SECTION_PAD_BOTTOM=spacing.xl accumulate into the -27px offset observed on 390x600.",
+        "testID": "reader-chapter-preview-{n} + reader-chapter-eyebrow-{n}",
+        "priority": "HIGH"
+      },
+      {
+        "component": "DeepDive step() / current section detector (390x600)",
+        "issue": "At the 7th wheel down on 390x600 (scrollTop=3520, i.e. first screen of chapter 4), the header label reads '06 / 06' instead of the expected '04 / 06'. Root cause suspected in the useAnimatedScrollHandler onScroll (deep-dive/[id].tsx L282-290): the reading line is set at `y + headerBottom + (pageH - headerBottom) * 0.35`, which on a 600-tall page lands ~200 px below headerBottom (relative to the viewport top of the content area). Because chapters 4/5/6 in this story have relatively short bodies, several `tops[i]` end up above that line simultaneously and idx is incremented past chapter 4 straight to 6. The paging (jumpTo) is correct - it stopped at the right target - but the label display is not.",
+        "testID": "reader-header progress label",
+        "priority": "MEDIUM"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "acceptance_matrix": [
+    {
+      "id": "1",
+      "name": "Small VP 390x600 — wheel sequence [571,1027,1565,2021,2557,3013,3549] ±6 and label 01/06 01/06 02/06 02/06 03/06 03/06 04/06",
+      "result": "FAIL",
+      "notes": "Actual sequence [544, 1000, 1536, 1992, 2528, 2984, 3520] with per-step diff = -27, -27, -29, -29, -29, -29, -29 (all outside ±6). Labels 01/06 x2, 02/06 x2, 03/06 x2, 06/06 (last label wrong; expected 04/06)."
+    },
+    {
+      "id": "2",
+      "name": "Small VP 390x600 — no duplicate chapter header at any stop (preview-(k+1) and eyebrow-(k+1) rects must not both intersect 0..600)",
+      "result": "FAIL",
+      "notes": "Duplicate observed on stops #3, #5, #7 (chapters 2, 3, 4 first-screen positions). preview rect top=-40 bottom=81 (81 px visible), eyebrow rect top=149 bottom=198. This holds even after clearing pause.reading.* progress and starting from scrollTop=0."
+    },
+    {
+      "id": "3",
+      "name": "Normal VP 390x844 — wheel sequence exactly [788,1568,2348,3128,3908,4688,~5460(end)] and label 01/06..06/06; preview-2 at bottom of ch1 with no body text",
+      "result": "PASS",
+      "notes": "Sequence exact (diff=0 for all 6 steps, then 5460 = ending). Labels 01/06,02/06,03/06,04/06,05/06,06/06,06/06. After navigating to chapter 1 (scrollTop=788), preview-2 rect top=691 bottom=812 (visible near bottom), eyebrow-2 rect top=880 bottom=929 (NOT visible - outside viewport 0..844). preview-2 innerText = '02\\nCHAPTER\\nWhy the Sky Is Blue' - only number + eyebrow + title, no body content."
+    },
+    {
+      "id": "4a",
+      "name": "reader-back regression on small VP",
+      "result": "PASS",
+      "notes": "Click [data-testid=reader-back] from scrollTop 0 returns to /discover cleanly."
+    },
+    {
+      "id": "4b",
+      "name": "No console errors / pageerrors on either viewport",
+      "result": "PASS",
+      "notes": "0 console errors, 0 pageerrors on both 390x600 and 390x844 runs. Only Reanimated 'linear easing fallback on web' warning present (harmless)."
+    },
+    {
+      "id": "5",
+      "name": "Small VP 390x600 — symmetric UP wheel back to 0",
+      "result": "PASS",
+      "notes": "7 wheel-up steps produce 3064, 2528, 2072, 1536, 1080, 544, 0 - monotonic decrease back to 0."
+    }
+  ],
+  "console_signals": {
+    "errors": 0,
+    "pageerrors": 0,
+    "warnings_noise_only": [
+      "[Reanimated] Selected easing is not currently supported on web. Using linear easing instead."
+    ]
+  },
+  "test_report_links": [
+    "browser_automation inline scripts (3 runs): small-VP paging + duplicate check, normal-VP paging (post-progress-clear), small-VP + reader-back + up-symmetry"
+  ],
+  "action_items": [
+    "Align pageOverlap with the fix spec: change `const pageOverlap = headerBottom + spacing.lg` to `headerBottom + spacing.md` in /app/frontend/app/deep-dive/[id].tsx L199 (spec says overlap = headerBottom + 16 which is spacing.md, not spacing.lg=24). Then re-verify the small-viewport sequence lands within ±6 of the expected values.",
+    "Recompute the section-height math in /app/frontend/src/components/reader-section.tsx L88-90 so that on 390x600 the first-screen scroll target for chapter 2 (~1565) lines up exactly with the preview-2 bottom edge = headerBottom (currently the preview keeps 81 px inside viewport above headerBottom). Suggested check: sectionH must equal pages * (viewH_used) where viewH_used = minHeight - headerBottom + preview-baseline-adjustment; verify with a direct DOM measurement rather than PREVIEW_RESERVE constant.",
+    "Fix the current-section label detection for short trailing chapters in /app/frontend/app/deep-dive/[id].tsx L282-290: on 390x600 the 7th stop reports 06/06 instead of 04/06. Consider computing idx as the largest i where tops[i] <= y + headerBottom + epsilon (i.e. anchor to top of section under the header, not to a 35% reading line that can straddle multiple short chapters on a small viewport).",
+    "Optional: add a regression test at 390x600 to /app/frontend/e2e (or the existing test harness) that walks the wheel sequence and asserts (a) rect-overlap absence and (b) label progression 01..04."
+  ],
+  "critical_code_review_comments": [
+    "reader-section.tsx L19-21 SECTION_PAD_TOP=spacing.xxl+spacing.md, PREVIEW_RESERVE=170 are magic constants; the pagination math on L88-90 uses them but the actual rendered preview block includes SectionDivider (marginBottom=spacing.lg) + previewHead + eyebrow (paddingTop=spacing.xxl) + a 26/31 title on up to 2 lines - if the real height diverges from 170 the preview edge won't align with the screen bottom. Recommendation: measure the preview block on layout (onLayout on the preview <View>) and feed the measured height back into sectionH instead of the constant.",
+    "deep-dive/[id].tsx L199 pageOverlap = headerBottom + spacing.lg contradicts the spec described in the bug-fix note ('overlap = headerBottom + 16'). Changing this alone shifts the small-VP sequence by +8 px, which does not fully close the 27 px gap but is one of the contributing factors.",
+    "deep-dive/[id].tsx L282-290 uses (pageH-headerBottom)*0.35 as the reading line; for tall chapters this is fine but for short 4/5/6 chapters on a shrunk viewport the line can be above tops[3] and below tops[5] simultaneously, giving idx=5 while the reader is really at ch4-screen-1. Anchor to headerBottom + epsilon.",
+    "reader-section.tsx L92 the outer <View style={[styles.section, sectionH?{minHeight:sectionH}:null]}> uses only minHeight - if contentH shrinks after remeasure, sectionH stays big enough but the preview may reflow. This is fine for tall chapters but should be revisited alongside the height fix.",
+    "No deprecated Expo packages detected in the paths touched by this fix (expo-router, expo-linear-gradient, react-native-reanimated, react-native-gesture-handler all current)."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "N/A (frontend-only)", "frontend": "3/6 acceptance groups PASS (normal-VP paging + preview, reader-back, no console errors, UP-symmetry); 2/6 FAIL (small-VP sequence outside ±6 tolerance, duplicate chapter header rects at every chapter-transition screen on 390x600); 1 additional MEDIUM issue (label 06/06 instead of 04/06 at stop 7 on 390x600)" },
+  "seed_data_creation": "None. Guest session. Set localStorage 'pause.onboarded.v2'='1' and cleared all 'pause.reading.*' keys via addInitScript + explicit evaluate before navigating to the reader route.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "The small-viewport (390x600) fix is NOT yet meeting the strict acceptance criteria described in the review request. Two concrete failures: (1) sequence differs by ~27-29 px from the expected values across ALL 7 stops - suspect pageOverlap=headerBottom+spacing.lg vs the spec's headerBottom+16, plus a subtle constant in PREVIEW_RESERVE/SECTION_PAD_BOTTOM; (2) preview-(k+1) rect still intersects the viewport by ~81 px above headerBottom on each chapter-transition screen, so both preview and real eyebrow of chapter k+1 are in the viewport simultaneously (per DOM rects). The preview is visually hidden behind the sticky ReaderHeader (~64px), so a real user does not perceive two headers, but the geometry fix does not fully clip the preview off-screen. Normal viewport 390x844 is CORRECT: exact sequence and no rect overlap. reader-back is CORRECT on both viewports. To retest after main-agent fix: clear pause.reading.* keys before every navigation to sky-blue-sunset-orange (otherwise resume jumps you to end scrollTop=5460), then wait >=4.5s after #root has text, and use page.mouse.wheel(0,120) with 1s pauses (scrollEnabled=false).",
+  "rca_of_issue": "Bug fix partially works. On 390x844 the integer-screens-per-chapter math resolves perfectly to 780 px per section (viewH - overlap), landing preview-2 at 691..812 with real ch2 eyebrow at 880 (outside viewport). On 390x600 the same math is off: chapter sections resolve to 456 px per partial step (from step()'s y + viewH - pageOverlap), giving actual stops [544, 1000, 1536, ...] instead of [571, 1027, 1565, ...]. The 27 px shortfall means the preview block (rendered at bottom of the previous chapter's last screen) is not exactly flush with the viewport bottom - its bottom edge sits ~81 px into the viewport, overlapping with the incoming real eyebrow. Two contributing factors: pageOverlap uses spacing.lg (24) but the fix spec says +16 (spacing.md); and PREVIEW_RESERVE=170 in reader-section.tsx is a hardcoded estimate rather than a measurement of the actual preview block height (which varies with title line-count). Reproduction: viewport 390x600, /deep-dive/sky-blue-sunset-orange (guest, clear pause.reading.*), wheel 3 times with 1s pauses. Expected: preview-2 fully above viewport 0. Actual: preview-2 bottom = 81 px inside viewport, both preview-2 and eyebrow-2 rects visible. Mitigation options: (a) change pageOverlap to spacing.md, (b) measure preview block on layout and subtract measured value instead of PREVIEW_RESERVE, (c) add an explicit 'clip preview off previous screen' bottom padding equal to (measured overshoot) on the last screen of each chapter."
+}
