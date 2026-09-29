@@ -5,7 +5,7 @@ import { useEffect, useMemo } from "react";
 import { Modal, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import Ionicons from "@react-native-vector-icons/ionicons";
-import * as Haptics from "expo-haptics";
+import * as Haptics from "@/src/haptics";
 import Animated, {
   Easing, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withSequence, withSpring, withTiming,
 } from "react-native-reanimated";

@@ -8,7 +8,7 @@ import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import Ionicons from "@react-native-vector-icons/ionicons";
 import * as AppleAuthentication from "expo-apple-authentication";
-import * as Haptics from "expo-haptics";
+import * as Haptics from "@/src/haptics";
 
 import { useAuth } from "@/src/auth";
 import { useI18n } from "@/src/i18n";

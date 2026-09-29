@@ -3,10 +3,13 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { LinearGradient } from "expo-linear-gradient";
 import Ionicons from "@react-native-vector-icons/ionicons";
+import MaterialDesignIcons from "@react-native-vector-icons/material-design-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 
 import { api } from "@/src/api";
+import * as Haptics from "@/src/haptics";
+import { useHapticsEnabled } from "@/src/haptics";
 import { spacing, radius, typography, ACCENTS, useTheme, ThemeMode, AccentId, makeStyles, withAlpha } from "@/src/theme";
 import { AtmospherePreview } from "@/src/components/atmosphere-preview";
 
@@ -31,6 +34,7 @@ export default function Profile() {
   const { isPremium } = usePremium();
   const yearlyPlan = PLANS.find((p) => p.id === "yearly")!;
   const { mode, setMode, accent, setAccent, scheme, colors } = useTheme();
+  const [hapticsOn, setHapticsOn] = useHapticsEnabled();
   const styles = useStyles();
 
   const { data: user } = useQuery({
@@ -266,6 +270,22 @@ export default function Profile() {
               </Pressable>
             ))}
           </View>
+        </View>
+        <View style={styles.row}>
+          <MaterialDesignIcons name="vibrate" size={20} color={colors.onSurface} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.rowText}>{t.haptics_row}</Text>
+            <Text style={styles.rowHint}>{t.haptics_hint}</Text>
+          </View>
+          <Switch
+            value={hapticsOn}
+            aria-checked={hapticsOn}
+            accessibilityLabel={t.haptics_row}
+            onValueChange={(v) => { setHapticsOn(v); if (v) Haptics.selectionAsync().catch(() => {}); }}
+            trackColor={{ true: colors.cyan, false: colors.glassBorderStrong }}
+            thumbColor={hapticsOn ? colors.surface : colors.onSurface}
+            testID="haptics-switch"
+          />
         </View>
         <Pressable style={styles.row} onPress={resetOnboarding} testID="reset-onboarding">
           <Ionicons name="refresh-outline" size={20} color={colors.onSurface} />

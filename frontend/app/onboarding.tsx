@@ -6,7 +6,7 @@ import { useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import Ionicons from "@react-native-vector-icons/ionicons";
 
-import * as Haptics from "expo-haptics";
+import * as Haptics from "@/src/haptics";
 
 import { api, ProfileInput } from "@/src/api";
 import { makeStyles, useTheme, spacing, typography, radius, withAlpha } from "@/src/theme";

@@ -7,7 +7,7 @@ import { useCallback } from "react";
 import { Alert } from "react-native";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
-import * as Haptics from "expo-haptics";
+import * as Haptics from "@/src/haptics";
 
 import { api, ApiError, UserState } from "@/src/api";
 import { useI18n } from "@/src/i18n";

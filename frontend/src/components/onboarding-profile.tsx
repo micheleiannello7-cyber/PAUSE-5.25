@@ -11,7 +11,7 @@ import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import Ionicons from "@react-native-vector-icons/ionicons";
 import Svg, { Defs, LinearGradient as SvgGradient, Rect, Stop, Text as SvgText } from "react-native-svg";
-import * as Haptics from "expo-haptics";
+import * as Haptics from "@/src/haptics";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useI18n } from "@/src/i18n";
 import { Gender } from "@/src/api";

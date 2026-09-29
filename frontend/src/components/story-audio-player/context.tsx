@@ -7,7 +7,7 @@ import React, {
 } from "react";
 import { useAudioPlayer, useAudioPlayerStatus, setAudioModeAsync } from "expo-audio";
 import { SharedValue, useSharedValue } from "react-native-reanimated";
-import * as Haptics from "expo-haptics";
+import * as Haptics from "@/src/haptics";
 import { useRouter } from "expo-router";
 
 import { api, getApiLang, voiceSampleUrl, VoiceId, FREE_VOICE, TtsStatus, absoluteUrl } from "@/src/api";

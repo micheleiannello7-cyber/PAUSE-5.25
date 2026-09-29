@@ -4,7 +4,7 @@
 import React, { useState } from "react";
 import { View, Text, Pressable, ActivityIndicator } from "react-native";
 import Ionicons from "@react-native-vector-icons/ionicons";
-import * as Haptics from "expo-haptics";
+import * as Haptics from "@/src/haptics";
 import { LinearGradient } from "expo-linear-gradient";
 
 import { useTheme } from "@/src/theme";

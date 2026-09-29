@@ -326,3 +326,8 @@ Solo presentazione (nessuna modifica backend/contenuti):
 - Progetto ripristinato da https://github.com/micheleiannello7-cyber/PAUSE-5.24 ; seed DB: 12 categorie, 430 storie. TTS (ElevenLabs), Stripe, Fal.ai lasciati DISATTIVATI su richiesta utente.
 - `deep-dive/[id].tsx`: sul web `scheduleSnap` stima la velocità dai campioni di scroll (px/ms): fermo/quasi fermo → snap dopo 16ms, in movimento → 55ms (prima debounce fisso 90ms). Nativo: `onEndDrag` (velocità <0.05) e `onMomentumEnd` → snap immediato.
 - Stato: in attesa di verifica utente sulla reattività dell'autocentraggio.
+
+## Lettura a capitoli (paging) + interruttore vibrazione (giugno 2026, fork)
+- `deep-dive/[id].tsx`: scroll libero disattivato (`scrollEnabled={false}`). Pan verticale (RNGH) su un contenitore: a 28pt di spostamento (o al rilascio con spinta) `step(±1)` porta subito alla sezione successiva/precedente (apertura, capitoli, fine) allineata sotto la barra; sezioni più alte della schermata (+80pt) si leggono in due passi. Web: rotellina = un capitolo per colpo (lock 550ms). Rimossi snapNear/scheduleSnap.
+- `src/haptics.ts`: wrapper di expo-haptics con flag globale persistito (`pause.haptics.v1`, AsyncStorage) + `useHapticsEnabled`. Tutti gli import `expo-haptics` in app/src ora puntano a `@/src/haptics`.
+- Profilo → Impostazioni: riga "Vibrazione" (icona MDI `vibrate`, Switch `haptics-switch`), i18n it/en `haptics_row/haptics_hint`.

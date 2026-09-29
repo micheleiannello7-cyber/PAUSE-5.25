@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import * as Haptics from "expo-haptics";
+import * as Haptics from "@/src/haptics";
 import { api } from "@/src/api";
 import { StoryKind } from "@/src/components/kind-icon";
 import { toggleInterest } from "@/src/components/category-grid";

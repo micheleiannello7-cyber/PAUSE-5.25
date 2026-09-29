@@ -8,7 +8,7 @@ import Ionicons from "@react-native-vector-icons/ionicons";
 import Animated, {
   FadeInDown, FadeOutUp, useSharedValue, useAnimatedStyle, withSequence, withSpring, withTiming, interpolateColor,
 } from "react-native-reanimated";
-import * as Haptics from "expo-haptics";
+import * as Haptics from "@/src/haptics";
 
 import { makeStyles, useTheme, radius, typography, spacing, withAlpha } from "@/src/theme";
 

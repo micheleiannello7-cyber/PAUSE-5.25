@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, useFocusEffect } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Ionicons from "@react-native-vector-icons/ionicons";
-import * as Haptics from "expo-haptics";
+import * as Haptics from "@/src/haptics";
 import { Image } from "expo-image";
 import Animated, { Easing, useAnimatedStyle, useReducedMotion, useSharedValue, withTiming } from "react-native-reanimated";
 import { api, StoryPreview, hasHero, heroUrl } from "@/src/api";

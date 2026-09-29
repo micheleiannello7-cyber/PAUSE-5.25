@@ -1,7 +1,7 @@
 import { Pressable, Text, ActivityIndicator, StyleProp, ViewStyle, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import Ionicons from "@react-native-vector-icons/ionicons";
-import * as Haptics from "expo-haptics";
+import * as Haptics from "@/src/haptics";
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming } from "react-native-reanimated";
 import { makeStyles, useTheme, typography, radius } from "@/src/theme";
 

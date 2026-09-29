@@ -3,7 +3,7 @@ import { View, Text, Pressable, StyleSheet, useWindowDimensions } from "react-na
 import Ionicons from "@react-native-vector-icons/ionicons";
 import { LinearGradient } from "expo-linear-gradient";
 import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from "react-native-reanimated";
-import * as Haptics from "expo-haptics";
+import * as Haptics from "@/src/haptics";
 import { StoryPreview, isLesson } from "@/src/api";
 import { makeStyles, typography, useTheme, withAlpha } from "@/src/theme";
 import { useI18n } from "@/src/i18n";

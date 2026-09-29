@@ -10,7 +10,8 @@ import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { captureRef } from "react-native-view-shot";
 import * as Sharing from "expo-sharing";
-import * as Haptics from "expo-haptics";
+import * as Haptics from "@/src/haptics";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
 
 import { api } from "@/src/api";
 import { makeStyles, useTheme, spacing, ThemeColors } from "@/src/theme";
@@ -39,6 +40,12 @@ function parseRect(value?: string): MorphRect | null {
   const n = (value ?? "").split(",").map(Number);
   return n.length === 4 && n.every((v) => Number.isFinite(v)) && n[2] > 0 && n[3] > 0 ? { x: n[0], y: n[1], width: n[2], height: n[3] } : null;
 }
+
+// Spostamento del dito (punti) oltre il quale il gesto verticale cambia sezione subito.
+const STEP_TRIGGER = 28;
+// Una sezione più alta della schermata di oltre questa tolleranza si legge in
+// due passi (prima una schermata parziale, poi il capitolo seguente).
+const OVERFLOW_TOL = 80;
 
 // Lettura editoriale continua: un'unica pagina verticale — grande copertina,
 // titolo, tre dati, introduzione, poi i capitoli uno dopo l'altro direttamente
@@ -168,58 +175,91 @@ export default function DeepDive() {
     if (!jumpTo(i, animated)) pendingSection.current = { index: i, animated };
   }, [jumpTo]);
 
-  // Autocentraggio dei capitoli: quando lo scorrimento si ferma vicino
-  // all'inizio di una sezione (apertura, capitolo, fine), la pagina si allinea
-  // da sola con quell'inizio sotto la barra — la lettura è sempre "centrata"
-  // sul capitolo. Raggio ampio ma asimmetrico: in avanti un po' più corto
-  // (non porta via troppo testo non ancora letto), indietro più generoso.
-  // Sul telefono l'allineamento è accompagnato da un tocco tattile leggerissimo.
+  // Lettura a capitoli: lo scorrimento libero è disattivato. Ogni gesto
+  // verticale porta esattamente alla sezione successiva o precedente
+  // (apertura, capitoli, fine), allineata sotto la barra — e scatta appena il
+  // dito si è mosso abbastanza da rendere chiara l'intenzione, senza aspettare
+  // il rilascio. Se una sezione è più alta della schermata, si avanza prima
+  // di una schermata parziale, poi al capitolo seguente.
   const pageHRef = useRef(winH);
   const maxYRef = useRef(0);
-  const snapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const snapNear = useCallback((y: number) => {
-    const tops = topsRef.current;
-    const targets = [0, ...tops.filter((t) => t > 0).map((t) => Math.max(0, t - headerBottom + spacing.sm))];
-    const h = pageHRef.current;
-    const forward = Math.min(320, h * 0.36), backward = Math.min(380, h * 0.44);
-    let best = -1, bestDist = Number.POSITIVE_INFINITY;
-    for (const target of targets) {
-      const d = Math.abs(y - target);
-      const radius = target > y ? forward : backward;
-      if (d < radius && d < bestDist) { best = target; bestDist = d; }
+  const step = useCallback((dir: 1 | -1) => {
+    const maxY = maxYRef.current;
+    const clampY = (v: number) => (maxY > 0 ? Math.min(v, maxY) : v);
+    const viewH = pageHRef.current - headerBottom;
+    const targets = [0, ...topsRef.current.filter((t) => t > 0).map((t) => clampY(Math.max(0, t - headerBottom + spacing.sm)))];
+    const y = clampY(autoY.value);
+    let target: number | undefined;
+    if (dir > 0) {
+      const next = targets.find((t) => t > y + 4);
+      if (next === undefined) return;
+      target = next - y > viewH + OVERFLOW_TOL ? y + viewH * 0.8 : next;
+    } else {
+      const prev = [...targets].reverse().find((t) => t < y - 4);
+      if (prev === undefined) return;
+      target = y - prev > viewH + OVERFLOW_TOL ? y - viewH * 0.8 : prev;
     }
-    if (best < 0 || bestDist < 1.5) return;
-    if (maxYRef.current > 0 && best > maxYRef.current) return;
-    autoY.value = best;
-    scrollRef.current?.scrollTo({ y: best, animated: true });
+    target = clampY(Math.max(0, target));
+    if (Math.abs(target - y) < 1) return;
+    markTouched();
+    autoY.value = target;
+    scrollRef.current?.scrollTo({ y: target, animated: true });
     if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [headerBottom, scrollRef, autoY]);
-  // Sul web non arrivano gli eventi di fine scorrimento: si stima la velocità
-  // dai campioni di scroll e, appena lo scorrimento rallenta/si ferma, si
-  // allinea subito (quasi immediato) invece di aspettare un ritardo fisso.
-  const webLast = useRef<{ y: number; t: number }>({ y: 0, t: 0 });
-  const scheduleSnap = useCallback((y: number) => {
-    const now = Date.now();
-    const prev = webLast.current;
-    const dt = now - prev.t;
-    const v = dt > 0 ? Math.abs(y - prev.y) / dt : 0; // px per ms
-    webLast.current = { y, t: now };
-    if (snapTimer.current) clearTimeout(snapTimer.current);
-    // Fermo o quasi → allinea subito; ancora in movimento → attesa minima.
-    const delay = v < 0.08 ? 16 : 55;
-    snapTimer.current = setTimeout(() => snapNear(y), delay);
-  }, [snapNear]);
-  useEffect(() => () => { if (snapTimer.current) clearTimeout(snapTimer.current); }, []);
+  const stepRef = useRef(step);
+  stepRef.current = step;
+  // Gesto verticale: scatta a STEP_TRIGGER punti di spostamento (o al
+  // rilascio con una spinta decisa). Uno spostamento orizzontale lo fa
+  // fallire, così lo swipe dal bordo per tornare indietro resta libero.
+  const stepFired = useSharedValue(false);
+  const pagePan = Gesture.Pan()
+    .activeOffsetY([-6, 6])
+    .failOffsetX([-18, 18])
+    .onBegin(() => { stepFired.value = false; })
+    .onUpdate((e) => {
+      if (stepFired.value || Math.abs(e.translationY) < STEP_TRIGGER) return;
+      stepFired.value = true;
+      runOnJS(step)(e.translationY < 0 ? 1 : -1);
+    })
+    .onEnd((e) => {
+      if (stepFired.value) return;
+      if (Math.abs(e.translationY) >= 12 || Math.abs(e.velocityY) > 300) {
+        stepFired.value = true;
+        runOnJS(step)((e.translationY !== 0 ? e.translationY : -e.velocityY) < 0 ? 1 : -1);
+      }
+    });
+  // Web con mouse: la rotellina avanza/arretra di un capitolo per "colpo".
+  const wrapRef = useRef<View>(null);
+  useEffect(() => {
+    if (Platform.OS !== "web") return;
+    const node = wrapRef.current as unknown as HTMLElement | null;
+    if (!node?.addEventListener) return;
+    let acc = 0, lockUntil = 0;
+    let reset: ReturnType<typeof setTimeout> | null = null;
+    const onWheel = (ev: WheelEvent) => {
+      ev.preventDefault();
+      const now = Date.now();
+      if (now < lockUntil) return;
+      acc += ev.deltaY;
+      if (reset) clearTimeout(reset);
+      reset = setTimeout(() => { acc = 0; }, 160);
+      if (Math.abs(acc) >= 40) {
+        stepRef.current(acc > 0 ? 1 : -1);
+        acc = 0;
+        lockUntil = now + 550;
+      }
+    };
+    node.addEventListener("wheel", onWheel, { passive: false });
+    return () => { node.removeEventListener("wheel", onWheel); if (reset) clearTimeout(reset); };
+    // Il contenitore esiste solo quando la storia è caricata.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [!!story]);
 
   const onScroll = useAnimatedScrollHandler({
     onScroll: (e) => {
       const y = e.contentOffset.y;
       scrollY.value = y;
-      if (!touchedSV.value && Math.abs(y - autoY.value) > 48) {
-        touchedSV.value = true;
-        runOnJS(markTouched)();
-      }
-      if (Platform.OS === "web") runOnJS(scheduleSnap)(y);
       // Titolo grande sotto la barra → si attenua; la barra diventa vetro quando la copertina è quasi uscita.
       const titleTop = bigTitleSV.value - headerBottom;
       headerReveal.value = interpolate(y, [titleTop - 40, titleTop + 48], [0, 1], Extrapolation.CLAMP);
@@ -237,15 +277,6 @@ export default function DeepDive() {
         currentSV.value = idx;
         runOnJS(setSection)(idx);
       }
-    },
-    // Nativo: fine dello scorrimento (rilascio senza slancio, o fine dello slancio) → autocentraggio.
-    onEndDrag: (e) => {
-      if (Platform.OS === "web") return;
-      if (Math.abs(e.velocity?.y ?? 0) < 0.05) runOnJS(snapNear)(e.contentOffset.y);
-    },
-    onMomentumEnd: (e) => {
-      if (Platform.OS === "web") return;
-      runOnJS(snapNear)(e.contentOffset.y);
     },
   });
 
@@ -402,11 +433,13 @@ export default function DeepDive() {
           corner={isPremium && listenStarted && !audioOpen ? <AudioMiniBadge visible onPress={() => setAudioOpen(true)} /> : null}
         />
 
+        <GestureDetector gesture={pagePan}>
+        <View ref={wrapRef} collapsable={false} style={styles.scroll}>
         <Animated.ScrollView
           ref={scrollRef}
           onScroll={onScroll}
           scrollEventThrottle={16}
-          onScrollBeginDrag={markTouched}
+          scrollEnabled={false}
           onLayout={onScrollLayout}
           onContentSizeChange={onContentSizeChange}
           contentContainerStyle={{ paddingTop: cover.top }}
@@ -442,6 +475,8 @@ export default function DeepDive() {
             />
           </View>
         </Animated.ScrollView>
+        </View>
+        </GestureDetector>
 
         {section === 1 ? (
           <CoachTip id="reader" text={t.tip_reader} icon="book-outline" style={{ top: headerBottom + spacing.md }} />

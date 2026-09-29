@@ -3,7 +3,7 @@ import { View } from "react-native";
 import { useFocusEffect } from "expo-router";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, { cancelAnimation, Easing, runOnJS, runOnUI, useAnimatedStyle, useReducedMotion, useSharedValue, withSequence, withSpring, withTiming, type SharedValue } from "react-native-reanimated";
-import * as Haptics from "expo-haptics";
+import * as Haptics from "@/src/haptics";
 import { StoryPreview } from "@/src/api";
 import { makeStyles } from "@/src/theme";
 import { HomeStoryCard } from "./home-story-card";
