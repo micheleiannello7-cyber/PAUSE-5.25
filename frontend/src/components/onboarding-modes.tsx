@@ -2,7 +2,7 @@
 // quando l'utente ne accende una, sotto si apre un pannello che spiega in breve
 // che cos'è quel formato; con entrambe accese compaiono entrambe le spiegazioni.
 // In fase "argomenti" le stesse scelte si riducono a due pillole compatte.
-import { View, Text, Pressable } from "react-native";
+import { View, Text, Pressable, StyleProp, ViewStyle } from "react-native";
 import Animated, { FadeInDown, FadeOutUp, LinearTransition, Easing } from "react-native-reanimated";
 import Ionicons from "@react-native-vector-icons/ionicons";
 
@@ -95,13 +95,13 @@ export function ModeCards({ modes, onToggle }: { modes: Set<StoryKind>; onToggle
   );
 }
 
-export function ModeChips({ modes, onToggle, disabled = false, idPrefix = "onboarding" }: {
-  modes: Set<StoryKind>; onToggle: (k: StoryKind) => void; disabled?: boolean; idPrefix?: string;
+export function ModeChips({ modes, onToggle, disabled = false, idPrefix = "onboarding", style }: {
+  modes: Set<StoryKind>; onToggle: (k: StoryKind) => void; disabled?: boolean; idPrefix?: string; style?: StyleProp<ViewStyle>;
 }) {
   const styles = useStyles();
   const { label } = useModeCopy();
   return (
-    <View style={styles.chipRow} testID={`${idPrefix}-mode-chips`}>
+    <View style={[styles.chipRow, style]} testID={`${idPrefix}-mode-chips`}>
       {ORDER.map((k) => {
         const on = modes.has(k);
         return (

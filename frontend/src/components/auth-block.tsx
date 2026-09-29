@@ -19,8 +19,13 @@ const BTN_H = 50;
 // Marchio Google: colori fissi (identici nei due temi).
 const GOOGLE_G = "#FFFFFF";
 
-export function AuthBlock({ onSignedIn }: { onSignedIn?: () => void }) {
+// `k` (0…1): fattore di compattezza del passo profilo — 1 misure di riferimento,
+// 0 versione più stretta per schermi con poca altezza utile.
+export function AuthBlock({ onSignedIn, k = 1 }: { onSignedIn?: () => void; k?: number }) {
   const { t } = useI18n();
+  const lerp = (compact: number, roomy: number) => Math.round((compact + (roomy - compact) * k) * 10) / 10;
+  const btnH = lerp(44, BTN_H);
+  const wrap = [styles.wrap, { marginBottom: lerp(8, 14) }];
   const { status, user, busy, appleAvailable, signInWithGoogle, signInWithApple, signOut } = useAuth();
   const [error, setError] = useState(false);
   const [pending, setPending] = useState<"google" | "apple" | null>(null);
@@ -37,7 +42,7 @@ export function AuthBlock({ onSignedIn }: { onSignedIn?: () => void }) {
 
   if (status === "loading") {
     return (
-      <View style={styles.wrap} testID="auth-block-loading">
+      <View style={wrap} testID="auth-block-loading">
         <ActivityIndicator color={ONB.cyan} />
       </View>
     );
@@ -46,7 +51,7 @@ export function AuthBlock({ onSignedIn }: { onSignedIn?: () => void }) {
   if (status === "authenticated" && user) {
     const label = user.name || user.email || t.auth_guest;
     return (
-      <View style={styles.wrap} testID="auth-block-connected">
+      <View style={wrap} testID="auth-block-connected">
         <View style={styles.connected}>
           <LinearGradient colors={["rgba(8,12,20,0.48)", "rgba(3,7,13,0.56)"]} style={StyleSheet.absoluteFill} pointerEvents="none" />
           {user.picture ? (
@@ -71,16 +76,16 @@ export function AuthBlock({ onSignedIn }: { onSignedIn?: () => void }) {
 
   const twoUp = appleAvailable && Platform.OS === "ios";
   return (
-    <View style={styles.wrap} testID="auth-block">
-      <Text style={styles.hint} testID="auth-hint">{t.auth_save_progress}</Text>
+    <View style={wrap} testID="auth-block">
+      <Text style={[styles.hint, { marginBottom: lerp(6, 10) }]} testID="auth-hint">{t.auth_save_progress}</Text>
       <View style={[styles.row, twoUp && styles.rowTwoUp]}>
         {twoUp ? (
           <View style={styles.half} testID="auth-apple">
             <AppleAuthentication.AppleAuthenticationButton
               buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
               buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE}
-              cornerRadius={BTN_H / 2}
-              style={styles.appleBtn}
+              cornerRadius={btnH / 2}
+              style={[styles.appleBtn, { height: btnH }]}
               onPress={() => run("apple")}
             />
           </View>
@@ -91,7 +96,7 @@ export function AuthBlock({ onSignedIn }: { onSignedIn?: () => void }) {
           accessibilityRole="button"
           accessibilityLabel={t.auth_google}
           testID="auth-google"
-          style={({ pressed }) => [styles.googleBtn, twoUp && styles.half, pressed && styles.pressed, busy && { opacity: 0.7 }]}
+          style={({ pressed }) => [styles.googleBtn, { height: btnH, borderRadius: btnH / 2 }, twoUp && styles.half, pressed && styles.pressed, busy && { opacity: 0.7 }]}
         >
           <LinearGradient colors={["rgba(14,28,63,0.92)", "rgba(8,17,42,0.92)"]} style={StyleSheet.absoluteFill} pointerEvents="none" />
           {pending === "google" ? (

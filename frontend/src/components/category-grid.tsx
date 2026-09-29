@@ -9,6 +9,9 @@ import { CategoryArtwork } from "./category-artwork";
 import { CategorySelectionLight, CategoryTileEdge } from "./category-tile-effects";
 
 export const ALL_ID = "all";
+// Modalità "adatta all'altezza": tessera larga più bassa e altezza minima delle tessere.
+const FIT_ALL_H = 68;
+const FIT_TILE_MIN = 66;
 
 // Shared toggle logic: "all" is exclusive with specific categories.
 export function toggleInterest(prev: Set<string>, id: string): Set<string> {
@@ -25,9 +28,10 @@ export function toggleInterest(prev: Set<string>, id: string): Set<string> {
 // Same picker/persistence everywhere. Small phones use two columns to keep
 // the reference artwork and existing full category names readable.
 export function CategoryGrid({
-  categories, selected, onToggle, modes, staggerIn = false, disabled = false, columns: fixedColumns,
+  categories, selected, onToggle, modes, staggerIn = false, disabled = false, columns: fixedColumns, maxHeight,
 }: { categories: Category[]; selected: Set<string>; onToggle: (id: string) => void; compact?: boolean; modes?: ("stories" | "lessons")[]; staggerIn?: boolean; disabled?: boolean; /** Stile "vetro" dark navy dell'onboarding (icone ritagliate, tessere con gradiente). */ glass?: boolean;
-  /** Numero fisso di colonne (tessere dense, es. 4 nel tab Categorie per stare in una schermata). */ columns?: number }) {
+  /** Numero fisso di colonne (tessere dense, es. 4 nel tab Categorie per stare in una schermata). */ columns?: number;
+  /** Altezza disponibile: la griglia intera (tessera "Qualsiasi" + righe) si adatta per starci senza scorrere. */ maxHeight?: number }) {
   const allActive = selected.has(ALL_ID);
   const { t } = useI18n();
   const styles = useStyles();
@@ -41,6 +45,20 @@ export function CategoryGrid({
   const columns = fixedColumns ?? (gridW < 315 ? 2 : gridW >= 560 ? 4 : 3);
   const dense = fixedColumns != null;
   const tileW = gridW > 0 ? Math.floor((gridW - spacing.xs * 2 - spacing.sm * (columns - 1)) / columns) : undefined;
+  // Adattamento in altezza (onboarding a schermo intero): la tessera "Qualsiasi"
+  // si abbassa e le tessere prendono un'altezza esplicita calcolata sulle righe;
+  // l'oggetto 3D si ridimensiona per restare sopra al nome.
+  const fit = maxHeight != null && maxHeight > 0;
+  const rows = Math.ceil(categories.length / columns);
+  const naturalTileH = tileW ? Math.floor(tileW / (dense ? 0.76 : 0.72)) : 0;
+  const fixedExtra = spacing.md + spacing.xs + spacing.sm * (rows - 1);
+  // Prima si abbassa la tessera larga (fino a FIT_ALL_H), poi le tessere.
+  const allH = fit && tileW ? Math.max(FIT_ALL_H, Math.min(90, maxHeight - rows * naturalTileH - fixedExtra)) : undefined;
+  const tileH = fit && tileW && allH
+    ? Math.max(FIT_TILE_MIN, Math.min(naturalTileH, Math.floor((maxHeight - allH - fixedExtra) / rows)))
+    : undefined;
+  const artSize = tileH && tileW ? Math.min(Math.floor(tileW * 0.82), tileH - (dense ? 32 : 38)) : undefined;
+  const fitArt = artSize && tileW ? { width: artSize, height: artSize, left: Math.floor((tileW - artSize) / 2), aspectRatio: undefined } : null;
 
   // Count label reflects which content modes are active (curiosities / lessons
   // / both) so the numbers match what the user will actually receive.
@@ -65,11 +83,12 @@ export function CategoryGrid({
         accessibilityLabel={t.any_topic}
         style={({ pressed }) => [
           styles.allCard,
+          allH ? { minHeight: allH, paddingVertical: spacing.sm, paddingBottom: 14, marginBottom: spacing.md } : null,
           pressed && styles.pressed,
         ]}
       >
         <LinearGradient colors={[palette.top, palette.surface]} style={styles.glassBg} pointerEvents="none" />
-        <CategoryArtwork category={{ id: "all", color: palette.accents.all }} wide reference testID="category-art-all" />
+        <CategoryArtwork category={{ id: "all", color: palette.accents.all }} wide reference bannerSize={allH ? allH + 10 : undefined} testID="category-art-all" />
         <View style={styles.allText}>
           <Text testID="category-all-name" style={styles.allName} numberOfLines={2}>{t.any_topic}</Text>
           <Text testID="category-all-subtitle" style={styles.allSub} numberOfLines={2}>{t.any_topic_sub}</Text>
@@ -96,12 +115,13 @@ export function CategoryGrid({
               style={({ pressed }) => [
                 styles.tile,
                 dense && styles.denseTile,
+                tileH ? { height: tileH, aspectRatio: undefined, minHeight: 0 } : null,
                 pressed && styles.pressed,
               ]}
             >
               <LinearGradient colors={[palette.top, palette.surface]} style={styles.glassBg} pointerEvents="none" />
               {/* L'oggetto 3D sta nella parte alta della tessera: il nome resta sotto, senza coprirlo. */}
-              <View style={styles.artBox} pointerEvents="none"><CategoryArtwork category={c} reference fade={false} testID={`category-art-${c.id}`} /></View>
+              <View style={[styles.artBox, fitArt]} pointerEvents="none"><CategoryArtwork category={c} reference fade={false} testID={`category-art-${c.id}`} /></View>
               <View style={styles.labels}>
                 <Text testID={`category-name-${c.id}`} style={[styles.tileName, tileW >= 140 && styles.largeName, dense && styles.denseName]} numberOfLines={2}>{c.name}</Text>
                 <CategorySelectionLight id={c.id} color={color} active={active} />

@@ -58,9 +58,17 @@ export function OnboardingProfile({ value, onChange, onBack, onContinue, canCont
   const [focused, setFocused] = useState(false);
   const [agePickerOpen, setAgePickerOpen] = useState(false);
   // Logo più piccolo della presentazione (nel mockup l'anello è ~13% della larghezza).
-  const brandUnit = Math.min(width, 430) / 984 * 0.6;
+  // Schermo intero senza scorrimento: con meno altezza utile (barre di sistema,
+  // telefoni piccoli) le proporzioni si stringono in modo continuo — k = 1
+  // misure di riferimento, k = 0 versione più compatta. Nulla viene tolto.
+  const availH = height - insets.top - insets.bottom;
+  const k = Math.max(0, Math.min(1, (availH - 640) / (860 - 640)));
+  const lerp = (compact: number, roomy: number) => Math.round((compact + (roomy - compact) * k) * 10) / 10;
+  const brandUnit = Math.min(width, 430) / 984 * lerp(0.44, 0.6);
   const brandHeight = 372 * brandUnit;
-  const titleSize = Math.min(31, Math.max(24, width * 0.074));
+  const titleSize = Math.min(31, Math.max(24, width * 0.074)) * lerp(0.84, 1);
+  const cardPadV = lerp(10, 18);
+  const cardGap = lerp(8, 14);
   const [titleLine1, titleLine2] = t.onb_profile_title_a.split("\n");
 
   const setGender = (g: Gender) => {
@@ -84,7 +92,7 @@ export function OnboardingProfile({ value, onChange, onBack, onContinue, canCont
       <KeyboardAvoidingView style={styles.fill} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <ScrollView
           style={styles.fill}
-          contentContainerStyle={[styles.content, { paddingTop: insets.top + 10, paddingBottom: insets.bottom + spacing.md, minHeight: height }]}
+          contentContainerStyle={[styles.content, { paddingTop: insets.top + lerp(4, 10), paddingBottom: insets.bottom + lerp(6, spacing.md), minHeight: height }]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
           bounces={false}
@@ -100,22 +108,22 @@ export function OnboardingProfile({ value, onChange, onBack, onContinue, canCont
             <OnboardingBrand unit={brandUnit} top={0} />
           </View>
 
-          <View style={styles.titleWrap}>
+          <View style={[styles.titleWrap, { marginTop: lerp(12, 34) }]}>
             <Text style={[styles.title, { fontSize: titleSize, lineHeight: titleSize * 1.18 }]} testID="onboarding-profile-title">{titleLine1}</Text>
             <View style={styles.titleRow}>
               <Text style={[styles.title, { fontSize: titleSize, lineHeight: titleSize * 1.18 }]}>{titleLine2}</Text>
               <GradientWord word={t.onb_profile_title_b} fontSize={titleSize} />
             </View>
-            <Text style={styles.subtitle} testID="onboarding-profile-subtitle">{t.onb_profile_sub}</Text>
+            <Text style={[styles.subtitle, { fontSize: lerp(13, 14.5), lineHeight: lerp(18, 21), marginTop: lerp(6, 12) }]} testID="onboarding-profile-subtitle">{t.onb_profile_sub}</Text>
           </View>
 
-          <View style={styles.spacer} />
+          <View style={[styles.spacer, { minHeight: lerp(8, 22) }]} />
 
           {/* Account: Apple (iOS) / Google, oppure riga "connesso come". */}
-          <AuthBlock />
+          <AuthBlock k={k} />
 
           {/* Nome o nickname */}
-          <GlassField icon="person-outline" glow={focused} testID="onboarding-profile-name-card">
+          <GlassField icon="person-outline" glow={focused} testID="onboarding-profile-name-card" padV={cardPadV} gap={cardGap}>
             <Text style={styles.label} testID="onboarding-profile-name-label">{t.onb_profile_name}</Text>
             <TextInput
               value={value.name}
@@ -136,13 +144,13 @@ export function OnboardingProfile({ value, onChange, onBack, onContinue, canCont
           </GlassField>
 
           {/* Genere */}
-          <GlassField icon="male-female-outline" testID="onboarding-profile-gender-card">
+          <GlassField icon="male-female-outline" testID="onboarding-profile-gender-card" padV={cardPadV} gap={cardGap}>
             <Text style={styles.label} testID="onboarding-profile-gender-label">{t.onb_profile_gender}</Text>
             <View style={styles.chips}>
               {([["man", t.onb_profile_man], ["woman", t.onb_profile_woman], ["other", t.onb_profile_other]] as [Gender, string][]).map(([g, label]) => {
                 const on = value.gender === g;
                 return (
-                  <Pressable key={g} onPress={() => setGender(g)} accessibilityRole="radio" accessibilityState={{ selected: on }} testID={`onboarding-profile-gender-${g}`} style={({ pressed }) => [styles.chip, on && styles.chipOn, pressed && styles.pressed]}>
+                  <Pressable key={g} onPress={() => setGender(g)} accessibilityRole="radio" accessibilityState={{ selected: on }} testID={`onboarding-profile-gender-${g}`} style={({ pressed }) => [styles.chip, { minHeight: lerp(40, 44) }, on && styles.chipOn, pressed && styles.pressed]}>
                     <Text style={[styles.chipText, on && styles.chipTextOn]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{label}</Text>
                   </Pressable>
                 );
@@ -151,9 +159,9 @@ export function OnboardingProfile({ value, onChange, onBack, onContinue, canCont
           </GlassField>
 
           {/* Età */}
-          <GlassField icon="calendar-outline" testID="onboarding-profile-age-card">
+          <GlassField icon="calendar-outline" testID="onboarding-profile-age-card" padV={cardPadV} gap={cardGap}>
             <Text style={styles.label} testID="onboarding-profile-age-label">{t.onb_profile_age}</Text>
-            <Pressable onPress={() => setAgePickerOpen(true)} accessibilityRole="button" accessibilityLabel={t.onb_profile_age_ph} testID="onboarding-profile-age" style={({ pressed }) => [styles.select, pressed && styles.pressed]}>
+            <Pressable onPress={() => setAgePickerOpen(true)} accessibilityRole="button" accessibilityLabel={t.onb_profile_age_ph} testID="onboarding-profile-age" style={({ pressed }) => [styles.select, { minHeight: lerp(40, 44) }, pressed && styles.pressed]}>
               <Text style={[styles.selectText, value.age === null && styles.selectPlaceholder]} testID="onboarding-profile-age-value">
                 {value.age === null ? t.onb_profile_age_ph : `${value.age} ${t.onb_profile_age_years}`}
               </Text>
@@ -161,7 +169,7 @@ export function OnboardingProfile({ value, onChange, onBack, onContinue, canCont
             </Pressable>
           </GlassField>
 
-          <View style={styles.spacerSm} />
+          <View style={[styles.spacerSm, { minHeight: lerp(6, 20) }]} />
 
           <View style={styles.footer}>
             <Pressable
@@ -170,7 +178,7 @@ export function OnboardingProfile({ value, onChange, onBack, onContinue, canCont
               accessibilityRole="button"
               accessibilityState={{ disabled: !canContinue }}
               testID="onboarding-profile-continue"
-              style={({ pressed }) => [styles.cta, { opacity: canContinue ? 1 : 0.55 }, pressed && styles.ctaPressed]}
+              style={({ pressed }) => [styles.cta, { opacity: canContinue ? 1 : 0.55, height: lerp(48, 54) }, pressed && styles.ctaPressed]}
             >
               <LinearGradient colors={[...CTA_BORDER]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.ctaBorder}>
                 <LinearGradient colors={[...CTA_FILL]} locations={[0, 0.3, 0.55, 0.8, 1]} start={{ x: 0, y: 0.7 }} end={{ x: 1, y: 0.3 }} style={styles.ctaFill}>
@@ -181,12 +189,12 @@ export function OnboardingProfile({ value, onChange, onBack, onContinue, canCont
               </LinearGradient>
             </Pressable>
             {/* Tre indicatori come nel mockup (stesso stile della presentazione); questo è il secondo passo. */}
-            <View style={styles.dots} accessible={false} testID="onboarding-profile-dots">
+            <View style={[styles.dots, { marginTop: lerp(10, 18) }]} accessible={false} testID="onboarding-profile-dots">
               {[0, 1].map((i) => <View key={i} testID={`onboarding-profile-dot-${i}`} style={[styles.dot, i === 0 && styles.dotOn]} />)}
             </View>
           </View>
 
-          <View style={styles.spacerLg} />
+          <View style={[styles.spacerLg, { minHeight: lerp(2, 12) }]} />
         </ScrollView>
       </KeyboardAvoidingView>
 
@@ -219,15 +227,15 @@ function GradientWord({ word, fontSize }: { word: string; fontSize: number }) {
 
 // Una sola superficie di vetro scuro: la fotografia resta visibile al suo interno.
 // Il riflesso blu segue solo il contorno, senza alterare il vetro o creare aloni.
-function GlassField({ icon, glow, testID, children }: { icon: string; glow?: boolean; testID: string; children: React.ReactNode }) {
+function GlassField({ icon, glow, testID, children, padV = 18, gap = 14 }: { icon: string; glow?: boolean; testID: string; children: React.ReactNode; padV?: number; gap?: number }) {
   const [size, setSize] = useState({ width: 0, height: 0 });
   return (
-    <View style={styles.card} testID={testID} onLayout={({ nativeEvent: { layout } }) => {
+    <View style={[styles.card, { marginBottom: gap }]} testID={testID} onLayout={({ nativeEvent: { layout } }) => {
       setSize((prev) => prev.width === layout.width && prev.height === layout.height
         ? prev : { width: layout.width, height: layout.height });
     }}>
       <LinearGradient colors={[CARD_TOP, CARD_MID, CARD_BOTTOM]} locations={[0, 0.45, 1]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} pointerEvents="none" />
-      <View style={styles.cardRow}>
+      <View style={[styles.cardRow, { paddingVertical: padV }]}>
         <View style={styles.iconWrap}>
           <Ionicons name={icon as any} size={21} color={ONB.textSecondary} />
         </View>
@@ -332,7 +340,7 @@ const styles = StyleSheet.create({
     width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center",
     backgroundColor: ICON_FILL, borderWidth: 1, borderColor: withAlpha(ONB.textSecondary, 0.08),
   },
-  cardBody: { flex: 1, minWidth: 0, gap: 7 },
+  cardBody: { flex: 1, minWidth: 0, gap: 6 },
   label: { color: ONB.text, fontFamily: typography.bodyBold, fontSize: 14.5, lineHeight: 18 },
   input: { color: ONB.text, fontFamily: typography.body, fontSize: 14, lineHeight: 20, paddingVertical: 1, paddingHorizontal: 0, minHeight: 22, ...(Platform.OS === "web" ? ({ outlineStyle: "none" } as any) : null) },
   chips: { flexDirection: "row", gap: 4, marginTop: 2 },

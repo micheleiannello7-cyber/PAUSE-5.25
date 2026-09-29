@@ -19,6 +19,8 @@ type ArtworkProps = {
   fade?: boolean;
   /** Sorgente immagine alternativa (anteprime di nuove famiglie di icone). */
   uriOverride?: string;
+  /** Lato dell'oggetto nella tessera larga (`wide`), quando la tessera è più bassa del riferimento. */
+  bannerSize?: number;
 };
 
 export function CategoryArtwork({ category, ...props }: ArtworkProps) {
@@ -34,13 +36,13 @@ export function CategoryArtwork({ category, ...props }: ArtworkProps) {
   return <Artwork key={`${CATEGORY_VISUAL_MODE}:${uri}`} category={category} uri={uri} {...props} />;
 }
 
-function Artwork({ category, uri, testID, wide = false, compact = false, cornerRadius = radius.lg, glass = false, reference = false, fade = true }: Omit<ArtworkProps, "uriOverride"> & { uri: string | null }) {
+function Artwork({ category, uri, testID, wide = false, compact = false, cornerRadius = radius.lg, glass = false, reference = false, fade = true, bannerSize }: Omit<ArtworkProps, "uriOverride"> & { uri: string | null }) {
   const styles = useStyles();
   const { colors } = useTheme();
   const [failed, setFailed] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const showImage = CATEGORY_VISUAL_MODE === "illustrated" && !!uri && !failed;
-  const imageStyle = wide ? [styles.bannerImage, glass && styles.glassBanner] : [styles.image, compact && styles.compactImage, glass && styles.glassImage, reference && styles.referenceImage];
+  const imageStyle = wide ? [styles.bannerImage, glass && styles.glassBanner, bannerSize ? { width: bannerSize, height: bannerSize, top: -Math.round(bannerSize * 0.08), right: 4 } : null] : [styles.image, compact && styles.compactImage, glass && styles.glassImage, reference && styles.referenceImage];
   return (
     <View testID={testID} style={[styles.fill, { borderRadius: cornerRadius }, glass && styles.glassFill, reference && styles.referenceFill]} accessibilityState={{ busy: showImage && !loaded }}>
       {glass && !reference ? (

@@ -173,33 +173,34 @@ export default function Onboarding() {
             )}
           </Pressable>
         </View>
+      ) : topics ? (
+        // Argomenti a schermo intero: nessuno scorrimento, la griglia si adatta all'altezza rimasta.
+        <View style={styles.fitArea} testID="onboarding-selection-scroll">
+          <Animated.View key="topics" entering={enterFrom(dir)} layout={LAYOUT} style={styles.fitArea}>
+            <TopicPicker testID="onboarding-topics" categories={categories} selected={selected} modes={modes}
+              onToggleMode={toggleMode} onToggleCategory={(id) => setSelected((prev) => toggleInterest(prev, id))}
+              disabled={saving} staggerIn columns={4} fit />
+          </Animated.View>
+        </View>
       ) : (
         <ScrollView
           style={styles.scroll}
-          contentContainerStyle={!topics ? [styles.content, styles.contentCentered] : undefined}
+          contentContainerStyle={[styles.content, styles.contentCentered]}
           showsVerticalScrollIndicator={false}
           bounces={false}
           testID="onboarding-selection-scroll"
         >
-          {topics ? (
-            <Animated.View key="topics" entering={enterFrom(dir)} layout={LAYOUT}>
-              <TopicPicker testID="onboarding-topics" categories={categories} selected={selected} modes={modes}
-                onToggleMode={toggleMode} onToggleCategory={(id) => setSelected((prev) => toggleInterest(prev, id))}
-                disabled={saving} staggerIn columns={4} />
-            </Animated.View>
-          ) : (
-            <Animated.View key="modes" entering={enterFrom(dir)} exiting={FadeOut.duration(160)} layout={LAYOUT}>
-              <Text style={styles.stepTitle} testID="onboarding-modes-title">{t.onb_content_q}</Text>
-              <ModeCards modes={modes} onToggle={toggleMode} />
-            </Animated.View>
-          )}
+          <Animated.View key="modes" entering={enterFrom(dir)} exiting={FadeOut.duration(160)} layout={LAYOUT}>
+            <Text style={styles.stepTitle} testID="onboarding-modes-title">{t.onb_content_q}</Text>
+            <ModeCards modes={modes} onToggle={toggleMode} />
+          </Animated.View>
         </ScrollView>
       )}
       </OnboardingSwipe>
 
       <OnboardingToast notice={notice} bottom={insets.bottom + 132} onHide={() => setNotice(null)} />
 
-      <View style={[styles.footer, { paddingBottom: insets.bottom + spacing.md }]}>
+      <View style={[styles.footer, { paddingBottom: insets.bottom + spacing.sm + 2 }]}>
         {topics ? (
           <PagerDots count={2} index={1} color={ONB.cyan} onSelect={(i) => i === 0 && goTo(PROFILE_STEP)} style={styles.dots} testID="onboarding-dots" />
         ) : null}
@@ -239,13 +240,14 @@ const useStyles = makeStyles((colors) => ({
   container: { flex: 1, backgroundColor: ONB.bgTop },
   profileViewport: { flex: 1, backgroundColor: ONB.bgTop, overflow: "hidden" },
   scroll: { flex: 1 },
+  fitArea: { flex: 1, minHeight: 0 },
   content: { paddingHorizontal: spacing.xl, paddingTop: spacing.lg, paddingBottom: spacing.lg },
   contentCentered: { flexGrow: 1, justifyContent: "center", paddingBottom: spacing.xxxl },
   stepTitle: {
     color: ONB.text, fontFamily: typography.displayBold, fontSize: 28, lineHeight: 34, marginBottom: spacing.lg,
     textShadowColor: "rgba(55,211,255,0.25)", textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 18,
   },
-  dots: { alignSelf: "center", marginBottom: spacing.md },
+  dots: { alignSelf: "center", marginBottom: spacing.sm + 2 },
   ctaBtn: {
     minHeight: 56, borderRadius: radius.pill, overflow: "hidden",
     flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.sm,
@@ -259,7 +261,7 @@ const useStyles = makeStyles((colors) => ({
   ctaPressed: { opacity: 0.86, transform: [{ scale: 0.99 }] },
   ctaText: { color: ONB.cyanSoft, fontFamily: typography.bodyBold, fontSize: 16 },
   footer: {
-    paddingHorizontal: spacing.xl, paddingTop: spacing.md,
+    paddingHorizontal: spacing.xl, paddingTop: spacing.sm + 2,
     backgroundColor: "transparent",
   },
   errorWrap: {
