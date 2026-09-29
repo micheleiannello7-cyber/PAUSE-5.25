@@ -30,10 +30,20 @@ import { useMorphHost } from "./morph-host";
 
 export type MorphRect = IntroRect;
 
-export const MORPH_DURATION = 760;
-// Decelerazione continua (ease-out): niente coda quasi ferma alla fine, che
-// faceva sembrare la transizione "bloccata" prima dello scambio.
-export const MORPH_EASING = Easing.out(Easing.cubic);
+export const MORPH_DURATION = 680;
+// Curva sinusoidale simmetrica: partenza morbida e, soprattutto, arrivo ancora
+// in movimento fino all'ultimo fotogramma (nell'ultimo 15% del tempo si copre
+// ~5% della strada, contro <1% dell'ease-out cubico): titolo e griglia non
+// "si fermano" a un passo dalla meta per poi scattarvi sopra.
+export const MORPH_EASING = Easing.inOut(Easing.sin);
+// Apertura: il lettore si monta sotto quando la corsa è quasi conclusa (da qui
+// alla fine si copre meno del 2% della strada: eventuali fotogrammi persi nel
+// montaggio sono invisibili) così, alla fine, lo scambio è immediato — nessuna
+// pausa con gli elementi fermi a un pixel dalla meta.
+const OPEN_COMMIT_AT = 0.86;
+// Chiusura: il livello si dissolve sopra la card mentre percorre l'ultimo
+// tratto — l'arrivo è una fusione con la card reale, mai uno stacco netto.
+const CLOSE_FADE_MS = 150;
 // Dissolvenza d'ingresso del livello quando si chiude da un capitolo (la
 // schermata sotto non è la presentazione): prima si torna alla copertina, poi
 // tutto rientra nella card.
@@ -169,6 +179,9 @@ export function StoryMorph({ story, from: fromProp, premium, ready, onCommit, di
     started.current = true;
     const finishOpen = () => { animDoneRef.current = true; setAnimDone(true); };
     p.value = withTiming(1, { duration: MORPH_DURATION, easing: MORPH_EASING }, (done) => { if (done) runOnJS(finishOpen)(); });
+    // Montaggio anticipato del lettore (solo se la storia è già in cache).
+    const early = setTimeout(() => { if (dataReadyRef.current) commitOpen.current(); }, Math.round(MORPH_DURATION * OPEN_COMMIT_AT));
+    return () => clearTimeout(early);
   }, [closing, measured, p]);
   useEffect(() => {
     if (closing || !animDone || !dataReadyRef.current) return;
@@ -205,6 +218,7 @@ export function StoryMorph({ story, from: fromProp, premium, ready, onCommit, di
     if (fadeIn) veil.value = withTiming(1, { duration: FADE_IN_MS, easing: Easing.out(Easing.quad) });
     const slideLead = offsetX !== 0 ? Math.round(SLIDE_BACK_MS * 0.7) : 0;
     let cancelled = false;
+    let fadeTimer: ReturnType<typeof setTimeout> | null = null;
     // Il rientro parte solo quando la Home sotto ha finito il suo lavoro (nessuna
     // interazione/transizione in corso e due fotogrammi disegnati): l'animazione
     // non deve mai partire mentre il thread è ancora occupato a montare la Home.
@@ -214,6 +228,7 @@ export function StoryMorph({ story, from: fromProp, premium, ready, onCommit, di
         if (cancelled) return;
         homeReturnRef.current?.();
         p.value = withTiming(0, { duration: MORPH_DURATION, easing: MORPH_EASING }, (done) => { if (done) runOnJS(hostClear)(); });
+        fadeTimer = setTimeout(hostDismiss, MORPH_DURATION - CLOSE_FADE_MS);
       })));
     };
     const commit = setTimeout(async () => {
@@ -232,8 +247,8 @@ export function StoryMorph({ story, from: fromProp, premium, ready, onCommit, di
       start();
     }, lead);
     const safety = setTimeout(hostClear, lead + SLIDE_BACK_MS + HOME_SETTLE_MAX_MS + MORPH_DURATION + 1500);
-    return () => { cancelled = true; clearTimeout(commit); clearTimeout(safety); };
-  }, [closing, measured, fadeIn, offsetX, onCommit, p, veil, slideX, fromProp, armHomeSettle, waitHomeSettled, homeCardRef, homeReturnRef, hostClear]);
+    return () => { cancelled = true; clearTimeout(commit); clearTimeout(safety); if (fadeTimer) clearTimeout(fadeTimer); };
+  }, [closing, measured, fadeIn, offsetX, onCommit, p, veil, slideX, fromProp, armHomeSettle, waitHomeSettled, homeCardRef, homeReturnRef, hostClear, hostDismiss]);
   // In chiusura titolo e griglia restano quelli della scheda finché non si sa
   // dove stanno: poi, nello stesso istante, passano agli elementi in movimento.
   const floatingReady = !closing || measured;

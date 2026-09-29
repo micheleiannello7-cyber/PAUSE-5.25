@@ -341,3 +341,7 @@ Solo presentazione (nessuna modifica backend/contenuti):
 - `deep-dive/[id].tsx`: con arrivo da transizione (`morph=1`) capitoli e fine si montano solo dopo la dissolvenza del livello (`chaptersReady`), per non rubare fotogrammi allo scambio.
 - `story-morph.tsx`: il livello usa la propria altezza misurata (`layerH`, onLayout) invece di `useWindowDimensions` → geometria identica al lettore su Android; il rientro parte dopo `InteractionManager.runAfterInteractions` + 2 rAF.
 - `src/screen-corners.ts` (`useScreenCornerRadius`, expo-device): raggio angoli schermo per modello (tabella iPhone modelId; famiglie Android Samsung/Pixel/…; fallback da insets); `reader-frame.tsx` usa quel raggio. Web = 28.
+
+## Transizione: arrivo fluido di titolo e griglia (giugno 2026, fork)
+- `story-morph.tsx`: MORPH_DURATION 680, MORPH_EASING `Easing.inOut(Easing.sin)` (niente coda quasi ferma); apertura: lettore montato a OPEN_COMMIT_AT 0.86 della corsa (solo se storia in cache) → scambio immediato a fine corsa; chiusura: `hostDismiss` (fade 150ms) avviato 150ms prima della fine → fusione con la card reale, `hostClear` a fine corsa come sicurezza.
+- `deep-dive/[id].tsx`: anche ReaderEndingBackdrop e StoryShareCard (offscreen) montati solo con `chaptersReady`.

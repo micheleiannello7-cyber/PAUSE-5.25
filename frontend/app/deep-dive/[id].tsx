@@ -431,7 +431,7 @@ export default function DeepDive() {
       {/* Grande copertina dell'apertura: sale appena e resta una traccia scura con lo scroll. */}
       <ReaderCoverBackdrop story={story} scrollY={scrollY} frame={cover} instant={morph === "1"} />
       {/* Schermata finale: sfondo cinematico dell'onboarding, compare solo in fondo. */}
-      <ReaderEndingBackdrop scrollY={scrollY} pageH={pageHSV} endTop={endTopSV} />
+      {chaptersReady ? <ReaderEndingBackdrop scrollY={scrollY} pageH={pageHSV} endTop={endTopSV} /> : null}
       <StoryAudioProvider key={story.id} storyId={story.id} autoplay={listen === "1" && isPremium}>
         <ReaderHeader
           topInset={headerTop}
@@ -496,11 +496,13 @@ export default function DeepDive() {
       {/* Cornice luminosa nel colore del tema, lungo i bordi dello schermo. */}
       <ReaderFrame />
       {/* Off-screen share card, captured as PNG on demand. */}
-      <View style={styles.shareHidden}>
-        <View ref={shareRef} collapsable={false}>
-          <StoryShareCard story={story} />
+      {chaptersReady ? (
+        <View style={styles.shareHidden}>
+          <View ref={shareRef} collapsable={false}>
+            <StoryShareCard story={story} />
+          </View>
         </View>
-      </View>
+      ) : null}
     </Screen>
   );
 }
