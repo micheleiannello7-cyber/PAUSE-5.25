@@ -1,0 +1,42 @@
+{
+  "summary": "Frontend-only verification of the auto-centering (snap-to-chapter) fix on /deep-dive/[id]. Viewport 390x844, guest session, EN. Story sky-blue-sunset-orange has 6 chapters. Baseline snap targets computed from chapter tops (ch1..ch6 absoluteTop = 844/1398/1938/2478/3024/3502; endAbs=4042; maxY=3978; headerBottom=64 dedotto da target reali; radius = min(200, 844*0.22) = 185.68px). Snap targets = 0, 788, 1342, 1882, 2422, 2968, 3446, 3978. Tutti i 5 casi principali + regressioni PASS. Nessun errore console.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "acceptance_matrix": [
+    {"id": "C1", "name": "Wheel a ~700 (poco prima di ch1=788): snap a ch1 target e stabile", "result": "PASS", "notes": "before=700 → after(+1.8s)=788 → after(+3.3s)=788. Label header 01/06. Distanza 88px < radius 185.68 → attratto. Nessun ulteriore movimento oltre i 400ms iniziali."},
+    {"id": "C2", "name": "Wheel a posizione lontana da ogni snap target (>200px): NESSUN movimento", "result": "PASS", "notes": "Test 2a: target=1065 (midpoint ch1<->ch2 target, dist=277 da entrambi). before=1065 → after(+1.8s)=1065 → +3.3s=1065. Label 02/06 (reading line ha superato ch1). Test 2b: target=1600 (dist=258 da ch2, 282 da ch3). before=1600 → after(+1.8s)=1600 → +3.3s=1600. Nessun loop. Nota: il target iniziale 1244 provato nella prima passata era in realtà a soli 98px dal target di ch2 (dentro il radius) → snap corretto per spec, riprovato con targets veramente lontani."},
+    {"id": "C3a", "name": "Forward: fermata ~120px prima di ch2: allinea a ch2 (label 02/06)", "result": "PASS", "notes": "before=1222 → after(+1.8s)=1342 (ch2 target = 1398 - 64 + 8) → +3.3s=1342. Label 02/06. Distanza iniziale 120 < radius 185.68."},
+    {"id": "C3b", "name": "Backward: ~100px oltre l'inizio di ch2 (verso l'alto): riallinea a ch2", "result": "PASS", "notes": "before=1242 (100 sopra ch2 target 1342) → after(+1.8s)=1342 → +3.3s=1342. Label 02/06. Snap simmetrico."},
+    {"id": "C4", "name": "Dall'apertura, +120: torna a 0 (re-center apertura)", "result": "PASS", "notes": "before=120 → after(+1.8s)=0 → +3.3s=0. Distanza 120 < radius 185.68. Header senza titolo (label=null, corretto per intro/section 0)."},
+    {"id": "C5", "name": "Scroll fino in fondo: stabile a maxY, no rimbalzo, label 06/06", "result": "PASS", "notes": "Wheel a 5000 (>maxY). before=3978 (maxY) → after(+1.8s)=3978 → +3.3s=3978. Label header 06/06. Nessun rimbalzo/loop."},
+    {"id": "R1", "name": "Regressione: header senza titolo sull'intro (scrollTop=0)", "result": "PASS", "notes": "Screenshot a scrollTop=0 dopo reset mostra solo il chevron back nella barra; il titolo grande è nel corpo dell'intro. Nessun testo del titolo visibile nella top bar (headerReveal=0)."},
+    {"id": "R2", "name": "Regressione: header con titolo sui capitoli", "result": "PASS", "notes": "A scrollTop=800 (label 01/06) sotto ch1 target: il titolo grande è uscito, headerReveal→1 (verificato dalla progressione label + dal comportamento dell'headerSolid già coperto in iteration precedenti)."},
+    {"id": "R3", "name": "Nessun errore console durante l'intera sessione", "result": "PASS", "notes": "0 errori console, 0 pageerror durante tutti i 6 test + reset multipli. Nessuna eccezione da Reanimated/Animated.ScrollView."}
+  ],
+  "test_report_links": [
+    "Test eseguito via browser_automation (page.mouse.wheel su [data-testid='deep-dive-scroll'], letto scrollTop prima/dopo per ogni caso, waits di 1.8s + 1.5s per verificare stabilità post-snap)"
+  ],
+  "action_items": [
+    "Nessun bug: il fix di autocentraggio funziona secondo specifica. Il snap scatta entro ~200-400ms dopo il fermo scroll (170ms debounce web + scrollTo animato).",
+    "Nota (già in iterazioni precedenti, non regressione): warning ambientali web pointerEvents/textShadow* e Reanimated easing 'not supported on web'. Non toccano il comportamento di snap: lo scrollTo({animated:true}) sul web utilizza il behavior:'smooth' nativo del browser."
+  ],
+  "critical_code_review_comments": [
+    "deep-dive/[id].tsx L178-191 (snapNear): logica corretta. Costruisce targets=[0, ...tops.map(t=>t-headerBottom+8)], seleziona best-target entro radius=min(200, pageH*0.22). Filtro 'bestDist<1.5' evita micro-jitter. Filtro maxY (L188) impedisce di snappare oltre la fine.",
+    "deep-dive/[id].tsx L194-197 (scheduleSnap): debounce 170ms su onScroll (solo web). Il clearTimeout su ogni onScroll previene lo snap durante scroll continuo → nessun loop. Cleanup su unmount L198.",
+    "deep-dive/[id].tsx L228-235 (onEndDrag/onMomentumEnd): early-return per web, snapNear direttamente su nativo quando velocity~0. Corretto.",
+    "deep-dive/[id].tsx L204-207: touched detection basato su |y-autoY|>48 protegge lo snap programmatico iniziale (apertura/resume) dal contare come gesto lettore. Corretto.",
+    "deep-dive/[id].tsx L149 (jumpTo target): coerente con snap target (tops[i-1] - headerBottom + spacing.sm). Stessa formula, così un jumpTo(section) porta esattamente sul punto in cui snapNear si ferma → nessun conflitto tra le due animazioni."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (frontend-only)", "frontend": "9/9 PASS (C1..C5 + R1..R3)"},
+  "seed_data_creation": "Nessuna. Guest session, localStorage 'pause.onboarded.v2'='1' per bypass onboarding.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Il radius di snap è min(200, pageH*0.22). Su viewport 390x844 pageH≈844 quindi radius≈185.68px (non 200). Se si testa a targets ≈195-200px da uno snap si è FUORI dal radius sul web. Per il caso 'no snap' assicurarsi che la distanza sia >200px o >22% pageH da OGNI target (targets = 0, ch_i_top-headerBottom+8, endTop, maxY). headerBottom su web ≈ 64 (insets.top web≈20 + spacing.xs 4 + READER_HEADER_H 40). Debounce web = 170ms → aspettare almeno 400-600ms per leggere il target di arrivo, +1500ms per confermare stabilità (assenza di loop).",
+  "rca_of_issue": "N/A — nessun bug. Il fix descritto è pienamente funzionante: snap dentro il radius (185.68px sul web) sia verso l'alto che verso il basso, nessun movimento fuori radius, apertura si ricentra a 0, fine è stabile a maxY. Nessun loop osservato in 6 test consecutivi con reset multipli."
+}

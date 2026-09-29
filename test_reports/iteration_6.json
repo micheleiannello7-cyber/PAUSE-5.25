@@ -1,0 +1,52 @@
+{
+  "summary": "Frontend-only verification of (a) autocentraggio più veloce/sensibile su /deep-dive/[id] (web debounce 90ms; raggio forward min(320,36%h)≈304px, backward min(380,44%h)≈371px con h=844) e (b) rimozione haptic per swipe deck su /discover mantenendo swipe/tap funzionanti. Viewport 390x844, guest EN, storia sky-blue-sunset-orange. 6/6 casi di accettazione PASS, nessun errore console, nessun pageerror.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "acceptance_matrix": [
+    {"id": "A", "name": "Wheel a ~500 (288px prima di ch1=788, dentro forward 304): dopo ~400ms scrollTop ≈788 e stabile", "result": "PASS", "notes": "set scrollTop=500 → osservato: 40ms=500, 165ms=539, 200ms=699, 234ms=741, 302ms=777, 370ms=788. Fine snap ≈370ms (debounce 90ms + scrollTo animato). Dopo 900ms scrollTop=788, stabile a +1.5s."},
+    {"id": "B", "name": "Wheel dall'apertura a ~150 (dentro backward 371 da 0): torna a 0", "result": "PASS", "notes": "set scrollTop=150 → dopo 900ms scrollTop=0. Stabile."},
+    {"id": "C", "name": "Posizione ~1060 (272 indietro da ch1=788, 282 avanti da ch2=1342): ambiguo → sceglie il target più vicino entro il raggio", "result": "PASS", "notes": "set scrollTop=1060: distanza a 788 (backward, raggio 371)=272; distanza a 1342 (forward, raggio 304)=282. Entrambe dentro raggio → sceglie la più corta (272 < 282) → snap a 788. Dopo 900ms scrollTop=788, stabile."},
+    {"id": "D", "name": "Posizione >320px da ogni target: NON deve muoversi dopo 1.5s", "result": "PASS", "notes": "Zona sicura calcolata nel gap intro (0→788, unico gap >675 disponibile: [372, 484]). Set scrollTop=430 (distanza a 0=430>371, distanza a 788=358>304). Dopo 1.6s scrollTop=430 (invariato, moved=False). Nota: gli altri gap tra capitoli (554/540/546/478/540) sono più stretti della somma forward+backward (675), quindi ogni punto interno ricade sempre entro almeno un raggio — comportamento atteso della nuova configurazione più aggressiva."},
+    {"id": "E", "name": "Sequenza wheel 500px ripetuti: ogni fermata si allinea a un inizio capitolo, label 01..06/06 coerente, fine pagina stabile, no loop", "result": "PASS", "notes": "Tabella (set → dopo 1.1s / dopo 1.5s / label): 500→788/788/'01 / 06'; 1288→1342/1342/'02 / 06'; 1842→1882/1882/'03 / 06'; 2382→2422/2422/'04 / 06'; 2922→2968/2968/'05 / 06'; 3468→3446/3446/'06 / 06'; 3946→3720/3720/'06 / 06'; 4220 (ripetuto)→3720/3720/'06 / 06'. Ogni fermata coincide col target di capitolo (0/788/1342/1882/2422/2968/3446) e con maxScroll clamp (3720) in fondo. Nessun loop. Label header monotonico 01→06. Bonus: header pulito su intro (scrollTop=0), stessa regressione R1 di iter5."},
+    {"id": "H", "name": "/discover: swipe orizzontale del mazzo cambia card senza errori", "result": "PASS", "notes": "Iniziale=home-story-v5-streaming-sgrana-open. Drag orizzontale -200px (10 step) → home-story-why-lefties-open (changed=True). Drag +200px → home-story-v5-streaming-sgrana-open (ripristinata). 0 errori console durante lo swipe."},
+    {"id": "I", "name": "/discover: tap su home-story-{id}-open apre il lettore con transizione morph fluida, no stallo, no errori", "result": "PASS", "notes": "Click su [data-testid=home-story-v5-streaming-sgrana-open] → naviga a /deep-dive/v5-streaming-sgrana?morph=1&rect=26,58,338,452. La transizione morph si dissolve entro ~1s (introMeasured→markReady + safety 1800ms). reader-back visibile. 0 errori console."},
+    {"id": "J", "name": "reader-back torna alla Home", "result": "PASS", "notes": "Click su [data-testid=reader-back] → URL torna a /discover. Nessuno stallo."}
+  ],
+  "before_after_comparison": {
+    "note": "Confronto con iteration_4 (raggio 185px, debounce ~170ms) e iteration_5 (retest snap con 170ms).",
+    "rows": [
+      {"case": "wheel 500 → ch1", "iter_4_or_5": "OK ma raggio 185: 500 era a 288 da 788 → FUORI raggio, restava a 500. Con 170ms deb: solo dopo scroll fino a ~603 (185 da 788) scattava.", "current": "Raggio forward 304: 288 < 304 → dentro; snap completo in ~370ms (debounce 90 + anim). PIÙ SENSIBILE."},
+      {"case": "wheel 150 → 0", "iter_4_or_5": "185 raggio: 150 dentro → torna a 0", "current": "371 raggio: 150 dentro → torna a 0. Raggio backward molto più ampio (+186px)."},
+      {"case": "1060 tra 788 e 1342", "iter_4_or_5": "185 raggio: 272 e 282 entrambi FUORI → nessun snap, restava a 1060", "current": "Entrambi dentro (272<371 back, 282<304 fwd) → snap al più vicino (788). Comportamento più deciso."},
+      {"case": "haptic swipe deck", "iter_4_or_5": "Haptics.impactAsync a ogni cambio card (move())", "current": "Rimosso da move(); rimane solo su onOpen(). Sul web non osservabile ma verifica code review OK (home-story-deck.tsx L104-112: nessun Haptics chiamato in move; L151: Haptics rimane in onOpen). Swipe/tap funzionanti."}
+    ]
+  },
+  "test_report_links": [
+    "browser_automation inline scripts (2 run): (1) misurazione layout+snap wheel A/B/C/D + timing samples; (2) sequenza 500px + /discover swipe+tap+back"
+  ],
+  "action_items": [
+    "Nessun bug. Entrambe le modifiche funzionano secondo specifica.",
+    "Nota informativa (non bug): la zona 'no-snap' esiste solo nel gap intro→ch1 (788px). Tra capitoli i gap sono 478-554px < 675 (forward+backward), quindi qualunque fermata interna cade sempre entro un raggio e viene attratta al capitolo più vicino. Questo è coerente con l'intento della modifica ('lettura sempre centrata sul capitolo') ma vale la pena documentarlo per future iterazioni."
+  ],
+  "critical_code_review_comments": [
+    "deep-dive/[id].tsx L180-196 snapNear: `targets = [0, ...tops - headerBottom + 8]`. Il guard `if (best < 0 || bestDist < 1.5) return;` evita micro-jitter (già a snap). Il guard `maxYRef.current > 0 && best > maxYRef.current` evita di scrollare oltre il fondo pagina (verificato: end target 3986 > maxY 3720 → non scatta, la pagina resta a 3720 stabile). Buono.",
+    "deep-dive/[id].tsx L184: `forward = Math.min(320, h*0.36)` e `backward = Math.min(380, h*0.44)`: con h=844 → 303.8 / 371.4. Con h piccole (es. 640) → 230.4 / 281.6 (proporzionale). Con h molto grandi (>888) → cap fisso 320/380 (comportamento consistente su tablet).",
+    "deep-dive/[id].tsx L195: haptic solo su nativo (`Platform.OS !== 'web'`), con `.catch(() => {})` — safe.",
+    "deep-dive/[id].tsx L199-202 scheduleSnap: debounce 90ms su ogni onScroll web — sotto la soglia di percezione umana ma sopra il typical wheel event burst (2-4 event / frame @16ms), quindi non si triggera prima della fine dello scroll. Ottima scelta.",
+    "home-story-deck.tsx L104-112 move(): nessun Haptics.impactAsync (rimosso correttamente).",
+    "home-story-deck.tsx L151: Haptics rimane su onOpen dopo controllo `if (dragged.value) return` — assicura che un rilascio dopo un drag non triggeri l'apertura né l'haptic. Corretto.",
+    "home-story-deck.tsx: nessun uso di expo-av / expo-barcode-scanner / expo-background-fetch. deep-dive/[id].tsx importa expo-haptics/expo-sharing/view-shot: tutti aggiornati e non deprecati."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (frontend-only)", "frontend": "8/8 PASS (A/B/C/D/E + H/I/J)"},
+  "seed_data_creation": "Nessuna. Guest, localStorage 'pause.onboarded.v2'='1' per bypass onboarding.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Per testare l'autocentraggio web: set scrollTop diretto su [data-testid=deep-dive-scroll], aspetta ≥900ms (debounce 90 + scrollTo smooth ~280ms + margine). Header progress: cercare div/span con testo pattern /^\\d{2}\\s*\\/\\s*\\d{2}$/ (es '01 / 06'). Target di ogni capitolo: chapter.getBoundingClientRect().top + scrollTop - headerBottom(≈64) + spacing.sm(8). Su h=844: forward radius=303.8, backward=371.4. Sky-blue chapters (heights): 554/540/540/546/478/540. Zona no-snap esiste SOLO in intro [372,484]; tra i capitoli è geometricamente impossibile (gap<675). maxScroll=3720 (contentH minore di endTop+minHeight per come React Native web renderizza minHeight su div interni).",
+  "rca_of_issue": "N/A — nessun bug. La riduzione del debounce a 90ms e l'ampliamento asimmetrico dei raggi (forward 304, backward 371) rendono l'autocentraggio percettivamente istantaneo e più deciso: la lettura è sempre allineata su un inizio capitolo o sull'apertura. La rimozione dell'haptic sul cambio card di /discover è confermata dal codice (nessun impactAsync in move()) e non introduce regressioni: swipe orizzontale, dot indicators, tap→transizione morph e reader-back funzionano tutti come prima."
+}

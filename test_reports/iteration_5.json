@@ -1,0 +1,45 @@
+{
+  "summary": "Frontend-only verification of (a) hint riquadro con due spiegazioni + divisore in /explore e (b) rivelazione morbida del corpo capitolo su /deep-dive/[id]. Viewport 390x844, guest session EN. Story sky-blue-sunset-orange. Nessun errore console; tutti i criteri PASS.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "acceptance_matrix": [
+    {"id": "E1", "name": "/explore hint card: 3 figli (row1 + divider 1px + row2 con testID explore-change-note)", "result": "PASS", "notes": "explore-hint children = [DIV(h=41, 2 children: bullet+text), DIV(h=1, divider), DIV testID=explore-change-note (h=60, 2 children: bullet+text)]. explore-hint-text presente. explore-change-note-title = 'Nothing is set in stone', explore-change-note-text = ' — You can change topics and formats anytime from the Topics tab.'"},
+    {"id": "E2", "name": "Icona/pallino a sinistra su entrambe le righe (bullet Ionicons)", "result": "PASS", "notes": "Screenshot conferma sparkles-outline (row1) e options-outline (row2), entrambe cerchiate nel colore cyan del tema ONB, allineate a sinistra."},
+    {"id": "E3", "name": "Divisore sottile tra le due righe (elemento alto 1px)", "result": "PASS", "notes": "Il secondo figlio del hint card ha altezza esattamente 1px, background rgba con alpha=0.16 cyan, marginLeft=32 (26+spacing.sm+2) per allineare sotto il testo."},
+    {"id": "E4", "name": "Nessun banner separato in fondo alla griglia (explore-change-note count == 1)", "result": "PASS", "notes": "document.querySelectorAll('[data-testid=\"explore-change-note\"]').length === 1. Nota: nello screenshot si vede un CoachTip 'Tap categories to choose what shows up on Home' — è un tip separato (coach hint 'explore'), NON il change-note; testID diverso."},
+    {"id": "E5", "name": "explore-title su una sola riga", "result": "PASS", "notes": "'What truly sparks your curiosity?' rendered su una riga (height=19px, numberOfLines=1 con adjustsFontSizeToFit)."},
+    {"id": "D1", "name": "Snap ch1 dopo wheel 700 → scrollTop=788", "result": "PASS", "notes": "wheel(0,700) → dopo 2s scrollTop=788. Ch1 con top=56 (sotto la barra headerBottom≈64): head opacity=1.000, body opacity=1.000, body translateY=0.00. Ch2 (top=627, in basso): head opacity=0.526, body opacity=0.000, body translateY=42.63."},
+    {"id": "D2", "name": "Stato iniziale (scrollTop=0): tutti i capitoli sotto in basso hanno head opacity≈0.42, body opacity=0, translateY=44", "result": "PASS", "notes": "ch1 (top=844): headOp=0.42, bodyOp=0, bodyTy=44. Idem ch2 (top=1415) e ch3 (top=1955). Formula: h=844 → dist≥h*0.72 (~608) → head opacity clamp a 0.42; dist≥h*0.62 (~523) → body opacity=0; dist≥h*0.66 (~557) → translateY=44. Confermato."},
+    {"id": "D3", "name": "Scroll progressivo verso ch2 (150px per step): body opacity 0→1 monotonicamente crescente, translateY 44→0 monotonicamente decrescente, nessun salto", "result": "PASS", "notes": "Campioni ch2 body (scrollTop → topOnScreen → headOp/bodyOp/bodyTy): 788→627→0.526/0.000/42.63; 908→507→0.727/0.353/26.22 (interpolato); 1022→393→0.928/0.736/13.58; 1148→267→1.000/1.000/0.00; 1341→74→1.000/1.000/0.00. Body opacity monotona crescente = True. TranslateY monotona decrescente = True. Nessun salto istantaneo 0→1: transizione continua ~360px di scroll (da dist≈0.62h a 0.28h ≈ 287px), coerente con la formula interp(dist,[h*0.28,h*0.62],[1,0])."},
+    {"id": "D4", "name": "Ch2 allineato sotto la barra (snap scrollTop=1342/1343): body opacity=1, translateY=0, head opacity=1", "result": "PASS", "notes": "scrollTop=1343, ch2 top=72 (subito sotto headerBottom≈64): headOp=1.000, bodyOp=1.000, bodyTy=0.00. Ch3 (top=612, ora in basso) torna a headOp=0.552, bodyOp=0.000, bodyTy=40.77. Ch1 (top=-499, uscito in alto) resta pieno (headOp=1, bodyOp=1)."},
+    {"id": "R1", "name": "Regressione: header senza titolo su intro (scrollTop=0)", "result": "PASS", "notes": "Screenshot a scrollTop=0 mostra solo chevron back nella barra; nessun testo header visibile (headerReveal=0 → wrapper animato opacity=0). Il titolo grande vive nel corpo dell'intro."},
+    {"id": "R2", "name": "Regressione: autocentraggio ancora attivo (wheel 700 → 788)", "result": "PASS", "notes": "Snap corretto entro ~2s, target=788 come iterazione 4. Debounce web 170ms + scrollTo smooth."},
+    {"id": "R3", "name": "Regressione: scroll fino alla fine, nessun errore console", "result": "PASS", "notes": "scrollTop=10000 → clamp a maxY. 0 errori JS. 0 pageerror. Warning ambientali web pre-esistenti (textShadow*/pointerEvents deprecation) non introdotti da queste modifiche."}
+  ],
+  "test_report_links": [
+    "browser_automation inline scripts (2 run): /explore hint DOM structure + /deep-dive/[id] scroll sampling con page.evaluate su getComputedStyle(opacity/transform) per head e body di ogni deep-dive-chapter-N"
+  ],
+  "action_items": [
+    "Nessun bug. Entrambe le feature funzionano secondo specifica.",
+    "Nota informativa: la formula effettiva in reader-section.tsx è head opacity = interp(dist,[h*0.32, h*0.72],[1, 0.42]) (non 0.28/0.62 come nel prompt per la head); body opacity = interp(dist,[h*0.28, h*0.62],[1, 0]) e translateY = interp(dist,[h*0.24, h*0.66],[0, 44]) — coerenti con l'agent_to_agent_context_note. Verificato numericamente dai campioni."
+  ],
+  "critical_code_review_comments": [
+    "reader-section.tsx L85-103: `dist` calcolata come top-scrollY-headerBottom con guard su `top<=0` che ritorna 0 (safe, mantiene chapter pieno finché il layout non è misurato). Uso corretto di useDerivedValue+useAnimatedStyle su Reanimated: nessun re-render JS.",
+    "reader-section.tsx L91-94: head opacity clamp min 0.42 → il capitolo successivo resta sempre leggibile come anticipazione (mai invisibile), coerente con il commento del componente.",
+    "topic-picker.tsx L41-54: struttura hint pulita (una card, due row, un divider inline height:1). testID coerenti (hint, hint-text, change-note, change-note-title, change-note-text). marginLeft del divider = 26+spacing.sm+2 = 34px per allinearlo sotto il testo, non sotto il bullet — corretto.",
+    "topic-picker.tsx L85: `hintDivider` usa `withAlpha(ONB.cyan, 0.16)` — contrasto sufficiente sul fondo rgba(12,26,58,0.65).",
+    "topic-picker.tsx L30: sizing dinamico del titolo su una riga (fontSize calcolato da titleW * 0.56) + adjustsFontSizeToFit + minimumFontScale=0.7 come rete di sicurezza — copre bene EN/IT e viewport strette."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (frontend-only)", "frontend": "11/11 PASS (E1..E5 + D1..D4 + R1..R3)"},
+  "seed_data_creation": "Nessuna. Guest session, localStorage 'pause.onboarded.v2'='1' per bypass onboarding e accesso diretto a /explore.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Per campionare l'animazione della rivelazione su web: leggere direttamente scroll.scrollTop e getComputedStyle di ch.children[0] (head) e ch.children[1] (body). transform è di solito 'matrix(a,b,c,d,tx,ty)' — l'indice 5 dopo split(',') è translateY. Il snap web (170ms debounce) può interferire se si aspetta troppo tra i campioni: usare page.evaluate per settare scrollTop direttamente e leggere entro ~400ms (prima che il debounce riallineai). Per un check pulito 'senza snap' si può anche settare scrollTop a posizioni molto lontane da target (>200px o >22% pageH). Formula effettiva: head opacity = interp(dist,[0.32h, 0.72h],[1, 0.42]); body opacity = interp(dist,[0.28h, 0.62h],[1, 0]); body translateY = interp(dist,[0.24h, 0.66h],[0, 44]), con h≈844 e dist = topSectionScroll - scrollTop - headerBottom(≈64).",
+  "rca_of_issue": "N/A — nessun bug. Sia la ristrutturazione del hint /explore (due spiegazioni, bullet + divisore) sia la rivelazione progressiva del corpo capitolo su /deep-dive/[id] rispettano tutti i criteri di accettazione. Regressioni (snap, header, no errori) confermate."
+}

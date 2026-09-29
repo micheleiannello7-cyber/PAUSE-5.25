@@ -1,0 +1,44 @@
+{
+  "summary": "Frontend-only verification of the 4 UI changes (Profilo accent atmosphere previews, Home→reader morph BUG FIX, Explore/Topics title one-line + integrated hint, Home category tile CategoryTileEdge active). Viewport 390x844. All 4 PASS. Zero console errors. Only pre-existing non-blocking warnings (textShadow*, pointerEvents, Reanimated easing on web) already documented in iteration_1/2.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "acceptance_matrix": [
+    {"id": "P1", "name": "Profilo accent: 5 atmosphere-preview su una riga con nome + check su attivo + tap locked → /premium", "result": "PASS", "notes": "Tutti e 5 gli accent-{id} contengono atmosphere-preview-{id}. Bounding boxes: aurora(40,902,52), tramonto(104.5,902,52), foresta(169,902,52), oceano(233.5,902,52), orchidea(298,902,52). Tutti stesso top=902 → una sola riga. Nomi EN: Aurora/Sunset/Forest/Ocean/Orchid. Attivo=aurora con checkmark. Tap foresta (locked, guest) → naviga a /premium. No errori console."},
+    {"id": "M1", "name": "BUG FIX morph Home→reader: progressione continua senza fermata pre-fine + salto, lettore montato dopo l'animazione", "result": "PASS", "notes": "Campionato ogni ~80ms per 1.5s su 2 storie diverse. Run1 story-morph-cover progressa: t=17ms(26,58,338x452) → 288ms(20,45,349x460) → 407ms(12,26,366x472) → 495ms(7,15,377x479) → 583ms(4,8,382x483) → 678ms(2,4,387x486) → 771ms(1,1,389x487) → 856ms(0,0,390x488) [posizione finale ~MORPH_DURATION 760ms]. Nessun stallo di >150ms durante l'animazione (l'unica pausa di 171ms è a t=17→188ms cioè PRIMA che withTiming parta, per il measurement iniziale). Dopo il raggiungimento della posizione finale, l'overlay resta fermo (identico al reader sotto), reader monta a t~1041ms, hostOpacity dissolve 1→0.63→0.02→gone tra 1523ms e 1692ms. morph-host rimosso entro ~1.7s. Run2 stesso pattern (max stall pre-anim 180ms; reader a t~1019ms; host gone t~1628ms). Nessun errore console."},
+    {"id": "T1", "name": "Explore/Topics EN: titolo su UNA riga senza troncamento + hint contiene change-note (no banner in fondo)", "result": "PASS", "notes": "explore-title text='What truly sparks your curiosity?' scrollWidth=289 clientWidth=289 (no overflow), scrollHeight=19 clientHeight=19 (1 riga, fontSize=15px lineHeight=19px), no '…'. explore-hint contiene sia hint-text sia change-note-title ('Nothing is set in stone') sia change-note-text. Solo 1 elemento explore-change-note esiste, ed è dentro explore-hint. Nessun banner esterno."},
+    {"id": "T2", "name": "Explore/Topics IT: titolo su UNA riga + hint integrato", "result": "PASS", "notes": "Cambiata lingua da Profilo (lang-it). explore-title text='Cosa ti incuriosisce davvero?' scrollWidth=289=clientWidth (no overflow), height=21, no '…'. Hint contiene 'Nessuna scelta è definitiva · Puoi cambiare argomenti e formati quando vuoi dalla scheda Argomenti'. change-note-title inside hint. Ripristinato EN."},
+    {"id": "H1", "name": "Home: home-cat CategoryTileEdge active layer visibile (border 1.75px colore + boxShadow alone, opacity 1); toggle segue lo stato; stesso comp di chip-* in Explore", "result": "PASS", "notes": "Trovate 8 tessere home-cat-* (scienza/spazio/tecnologia/natura/animali/storia/arte/corpo-umano); tutte all'apertura con category-light-home-{id} aria-label='on' e category-glow-{id} opacity=1. Inspezione DOM di home-cat-scienza: layer idx 13 con border-width=1.75px border-color=rgb(0,223,255) box-shadow=`rgba(0,223,255,0.78) 0px 0px 28px, rgba(0,223,255,0.42) 0px 0px 60px, inset rgba(0,223,255,0.4)...` opacity=1 (identica specifica del componente CategoryTileEdge). Tap su home-cat-scienza → aria-label passa a 'off', glow opacity=0. Confronto in /explore su chip-scienza (aria='off' come stato guest all-selected default): STESSO layer, stessi valori di border/shadow, opacity=0. Stesso componente CategoryTileEdge. Screenshot conferma alone colorato visibile su tutte le tessere selezionate."}
+  ],
+  "test_report_links": [
+    "/tmp/profile_accents.png",
+    "/tmp/explore_en.png",
+    "/tmp/explore_it.png",
+    "/tmp/discover_home.png",
+    "/tmp/morph_run1_final.png",
+    "/tmp/morph_run2_final.png"
+  ],
+  "action_items": [
+    "Nessun bug rilevato. Le 4 modifiche funzionano tutte come da specifica.",
+    "Nota UX (informativa, non regressione): come guest gli accenti non-aurora sono Premium-locked, quindi al tap si apre /premium invece di applicare l'atmosphere-preview. Comportamento invariato dall'iteration precedente.",
+    "Warning ambientali web (già in iteration_1/2, non regressione): props.pointerEvents deprecato, textShadow* deprecato, Reanimated easing 'not supported on web → linear'. Sul web l'easing lineare non ha alterato la percezione visiva della morph: la progressione è continua e la durata effettiva ~760ms come da spec."
+  ],
+  "critical_code_review_comments": [
+    "story-morph.tsx L161-166: fix ok — withTiming(1, MORPH_DURATION, MORPH_EASING=Easing.out(cubic)) con callback finishOpen; poi useEffect L167-170 chiama commitOpen SOLO se animDone && dataReady. Corretto: il mount del lettore è ORA (v3) dopo la fine dell'animazione, non a 85% come prima.",
+    "story-morph.tsx L173-176: la dissolvenza del morph-host parte solo quando animDone && host.ready (lettore sotto disegnato e stabile). Coerente con quanto osservato (hostOp=1 fino a t~1458ms, poi decay in 150ms).",
+    "morph-host.tsx L42-44: dismiss usa withTiming(0, 150, Easing.out(quad)) → runOnJS(clear). Nei sample hostOp passa 1→0.63→0.02→gone in ~170ms, coerente.",
+    "topic-picker.tsx L34-49: struttura corretta — un unico riquadro *-hint che ospita sia hint-text che change-note (title+text). Nessun banner separato in fondo alla griglia (verificato via query 'unique change-note dentro hint').",
+    "category-tile-effects.tsx L33-42: layer 'active' di CategoryTileEdge — borderRadius/borderWidth 1.75/borderColor 100%/boxShadow multiplo (28+60+inset 26) — correttamente animato da Animated.timing(opacity, active?1:0, 220ms). home-controls.tsx L33 lo monta con active={active}: verificato che opacity segue lo stato del light."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (frontend-only)", "frontend": "5/5 PASS (P1 + M1 + T1 + T2 + H1)"},
+  "seed_data_creation": "Nessuna. Sessione anonima/ospite (localStorage 'pause.onboarded.v2'=1 per saltare onboarding).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Cambio lingua in guest: bypassare l'onboarding con localStorage.setItem('pause.onboarded.v2','1'), poi /profile, poi lang-en/lang-it. Le tessere home-cat sono già tutte selezionate di default per il guest (nessun 'interests' salvato → all-active), per cui vederle spente serve toccarle una volta. Per il morph, la 'pausa' iniziale di ~170ms prima che withTiming parta non è un bug: è il tempo di measurement (ReaderIntro onLayout + acceptTitle/acceptGrid + effect trigger). Da t=~200ms in poi la copertina progredisce ogni frame fino a ~800ms (MORPH_DURATION=760ms + rAF), poi si tiene ferma sulla schermata finale (identica al lettore) finché host.ready → dissolvenza 150ms.",
+  "rca_of_issue": "N/A — nessun bug. La regressione descritta (morph che si fermava prima della fine e poi 'scattava') NON si è riprodotta: la progressione della cover ora è continua ease-out fino alla fine, il lettore viene montato SOLO quando animDone=true (L167-170 di story-morph.tsx), e la dissolvenza del morph-host parte solo quando host.ready (L173-176). Comportamento coerente con il fix descritto."
+}

@@ -1,0 +1,39 @@
+{
+  "summary": "Frontend-only verification of the REDESIGN of /deep-dive/[id] reader (8 acceptance criteria). All 8 PASS. Viewport 390x844. Story sky-blue-sunset-orange. Verified: (1) chapter-cover-bg full-bleed top=0/left=0/width=390/height=638 with reader-atmosphere and reader-frame present; (2) on intro reader-header-title parent opacity=0 and deep-dive-page-label empty & opacity=0, after scrolling to chapter 1 parent opacity=1 and label='01 / 06'; (3) all 6 eyebrows contain exactly 'CHAPTER' (no digits); reader-chapter-number-1..6 = '01'..'06'; (4) progressive reveal: at chapter-1 focus, deep-dive-chapter-2 head opacity=0.484 (spec ~0.42, within interpolation band), body opacity=0; scrolling to chapter 2 sets its body opacity=1; label progressed 01→02→03→04→05→06/06; (5) full scroll to deep-dive-page-end reaches '06/06'; no horizontal overflow (docScrollWidth=clientWidth=390); reader-back returns to /discover; (6) Home→reader morph opening (tapped home-story-<id>-open) mounts reader with atmosphere/frame/cover; return via reader-back goes back to home-screen; (7) accent theming across ALL 5 accents propagates correctly to BOTH reader-atmosphere backgroundColor AND reader-frame borderColor — aurora rgb(6,10,22)/#5FDCFF, tramonto rgb(11,8,6)/#E8B384, foresta rgb(5,11,10)/#6FE6CF, oceano rgb(5,8,20)/#7AB6FF, orchidea rgb(9,6,18)/#CFA6FF, all matching theme.ts exactly; accent reset to aurora at the end; (8) light mode renders without crash, atmosphere becomes rgb(244,246,251), title & hook are dark rgb(11,14,23) → readable contrast. Zero JS errors during any of the flows. Only pre-existing non-blocking web warnings (textShadow*/pointerEvents deprecations, Reanimated easing on web) already documented in iteration_1.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "acceptance_matrix": [
+    {"id": "A1", "name": "Full-bleed cover + atmosphere + frame on open", "result": "PASS", "notes": "chapter-cover-bg {top:0,left:0,w:390,h:638}; reader-atmosphere bg=rgb(6,10,22); reader-frame borderColor=rgba(95,220,255,0.42) borderWidth=1px."},
+    {"id": "A2", "name": "Header title hidden on intro, revealed at chapter 1", "result": "PASS", "notes": "Intro: titleParent opacity=0, label opacity=0 & empty. At ch1: titleParent opacity=1, label='01 / 06' opacity=1."},
+    {"id": "A3", "name": "Eyebrow = only 'CHAPTER' (no digit) + big number 01..06", "result": "PASS", "notes": "All 6 eyebrows are exactly 'CHAPTER'; chapter-number 01/02/03/04/05/06."},
+    {"id": "A4", "name": "Progressive reveal of upcoming chapter (head ~0.42, body 0)", "result": "PASS", "notes": "At ch1: chapter-2 first child (head) opacity=0.484 (within interpolation range approaching 0.42), second child (body) opacity=0. Scrolling to ch2: body opacity=1."},
+    {"id": "A5", "name": "Scroll intro→6 chapters→end, label reaches 06/06, no horizontal overflow, back works", "result": "PASS", "notes": "Labels progressed 01..06/06. deep-dive-page-end reached. scrollWidth=clientWidth=390. reader-back → /discover."},
+    {"id": "A6", "name": "Home /discover → morph → reader identical, no console errors", "result": "PASS", "notes": "Tapping home-story-<id>-open mounts deep-dive-scroll; atmosphere/frame/cover present after morph; reader-back returns to home-screen. Zero JS errors."},
+    {"id": "A7", "name": "Accent theme change → reader-atmosphere bg & reader-frame border update", "result": "PASS", "notes": "All 5 accents produce the EXACT atmosBase/atmosFrame colors from theme.ts (aurora/tramonto/foresta/oceano/orchidea). No crash. Reset to aurora."},
+    {"id": "A8", "name": "Light mode in reader: no crash, readable text", "result": "PASS", "notes": "atmosphere rgb(244,246,251); title & hook color rgb(11,14,23) — high contrast on light bg. Reverted to dark."}
+  ],
+  "test_report_links": [],
+  "action_items": [
+    "Nessun bug bloccante. Nota UX secondaria (non richiesta dalla review): come guest, i 4 accenti non-aurora sono Premium-locked → toccarli in profilo apre /premium invece di applicare l'accento (verificato: /app/frontend/app/(tabs)/profile.tsx L217-219). Comportamento voluto; il test dei colori è stato eseguito impostando l'accento direttamente in storage (pause.theme.accent) e ricaricando, tutti i 5 temi propagano correttamente. Se si volesse mostrare l'anteprima del tema anche ai guest, aggiungere un percorso di preview senza gate.",
+    "Cosmetico (già in iteration_1): warning RNWeb textShadow* e props.pointerEvents deprecated, Reanimated easing on web — non regressioni del redesign."
+  ],
+  "critical_code_review_comments": [
+    "reader-cover-backdrop.tsx: la geometria è corretta {top:0,left:0,width:winW,radius:0}; il livello include un CoverSeam sfumato di 150px sotto la copertina, che raccorda alla atmosBase senza taglio visibile — coerente col brief.",
+    "reader-header.tsx L44-45: `titleIn` = withTiming(inChapters ? 1 : 0), applicato al parent con transform+opacity. Il titolo HTML interno ha opacity=1 ma il PARENT ha opacity=0 in intro — testare via titleParentOpacity (fatto).",
+    "reader-section.tsx L91-101: head opacity interpola da 1→0.42 su dist [h*0.32, h*0.72]; body opacity 1→0 su [h*0.26, h*0.56]. Coerente con la specifica '~0.42' e 'testo invisibile finché non ci si arriva'.",
+    "reader-atmosphere.tsx L44-47: sul web il respiro delle luci è disattivato (Platform.OS==='web'): corretto per performance, spiega perché le tint dei PNG non 'respirano' nell'anteprima web ma l'aspetto statico resta coerente col tema.",
+    "reader-frame.tsx: usa colors.atmosFrame per il border e colors.cyan come inset-glow. Il border-color cambia con l'accento (verificato)."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "N/A (frontend-only)", "frontend": "8/8 PASS" },
+  "seed_data_creation": "Nessuno. Sessione anonima/ospite già presente.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Per testare il cambio accento sul lettore come guest, impostare direttamente: `localStorage.setItem('pause.theme.accent', JSON.stringify('<id>'))` seguito da page.reload() — AsyncStorage web usa localStorage. Come guest gli accenti non-aurora sono Premium-locked in profilo (aprono /premium). Screenshot salvati: /tmp/ch1_view.png (chapter 1 con peek chapter 2), /tmp/orchidea_theme.png (accento orchidea), /tmp/light_mode.png (modalità chiara).",
+  "rca_of_issue": "N/A — nessun bug. Tutti gli 8 punti verificati positivi."
+}

@@ -1,0 +1,37 @@
+{
+  "summary": "Frontend-only verifica empirica del redesign della schermata di LETTURA di PAUSE (9 punti di accettazione). Percorso di onboarding coperto (profilo → 'Continue as guest' → topics 'Any topic' → 'Start discovering') fino alla Home. Aperta la storia attiva dal mazzo tramite il Pressable 'home-story-<id>-open' e verificata l'intera flow del lettore. 8 di 9 punti verificati con esito POSITIVO; T6 (edge-swipe) verificato PARZIALMENTE per limitazione tecnica: l'edge-swipe touch non è simulabile su web-preview Playwright, quindi il ritorno è stato verificato tramite reader-back (che condivide la stessa via di uscita/save del progresso). La resume card è comparsa in Home dopo il ritorno con progresso salvato (14%). Nessun errore JS in console durante l'intero flusso (solo warning React Native Web non bloccanti su textShadow*, props.pointerEvents e Reanimated easing).",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "acceptance_matrix": [
+    {"id": "T1", "name": "OPEN TRANSITION home→deep-dive", "result": "PASS", "notes": "Tap su home-story-<id>-open apre la lettura: deep-dive-scroll montato."},
+    {"id": "T2", "name": "Header opacity in intro", "result": "PASS", "notes": "reader-header presente; deep-dive-page-label opacity=0 in intro (current=0)."},
+    {"id": "T3", "name": "Wheel-scroll progression 01..06/06 + fills", "result": "PASS", "notes": "Etichetta osservata: '' → 01/06 → 02/06 → 03/06 → 04/06 → 05/06 → 06/06; reader-progress-fill-1..6 tutti presenti a fine scorrimento."},
+    {"id": "T4", "name": "Deep-dive ending at bottom", "result": "PASS", "notes": "deep-dive-page-end, deep-dive-ending, summary-card, deep-dive-actions e like-button/bookmark-button/share-story/next-story tutti presenti."},
+    {"id": "T5", "name": "Back from intro → Home", "result": "PASS", "notes": "reader-back in intro riporta a home-screen."},
+    {"id": "T6", "name": "Edge-swipe back with resume", "result": "PARTIAL", "notes": "Edge-swipe touch NON simulabile via Playwright web. Verificato equivalente semantico: dopo scroll in un capitolo si torna a Home; la ResumeCard 'PICK UP WHERE YOU LEFT OFF' compare in Home con progresso ~14%. La logica di save del reading-progress condivide la stessa via di uscita, quindi il resume è confermato. L'agente principale può verificare in Expo Go reale il gesto edge-swipe."},
+    {"id": "T7", "name": "Horizontal immobility", "result": "PASS", "notes": "Transforms su deep-dive-scroll/reader-header/reader-frame/reader-atmosphere restano matrix(1,0,0,1,0,0) o 'none' — nessuna traslazione X in tutta la lettura."},
+    {"id": "T8", "name": "Atmosphere/Frame + no horizontal overflow", "result": "PASS", "notes": "reader-atmosphere e reader-frame presenti. documentElement.scrollWidth=clientWidth=390 in intro, capitoli e fine → nessun overflow orizzontale, nessuna barra."},
+    {"id": "T9", "name": "No console errors", "result": "PASS", "notes": "0 errori JS. Presenti solo warning non bloccanti: textShadow* deprecated (React Native Web), props.pointerEvents deprecated, Reanimated 'Selected easing is not currently supported on web' — tutti provenienti dal layer web di RN/Reanimated, non regressioni del redesign."}
+  ],
+  "test_report_links": [],
+  "action_items": [
+    "Verificare manualmente in Expo Go (device fisico) il gesto edge-swipe (SwipeBack) sul lettore: il codice è presente in /app/frontend/src/components/swipe-back.tsx e il resume via getReadingProgress è già verificato indirettamente (ResumeCard compare a 14%).",
+    "Opzionale (cosmetico, non regressione): risolvere i warning di deprecazione RNWeb — textShadow* → textShadow (probabilmente in reader-header.tsx e altri titoli), e props.pointerEvents → style.pointerEvents (usato in vari file, es. reader-header/reader-frame). Non bloccante."
+  ],
+  "critical_code_review_comments": [
+    "Il testID del Pressable di apertura della card è 'home-story-<storyId>-open' (id interno alla card = `home-story-${story.id}`), non semplicemente '<storyId>-open' come indicato nella review request. Comportamento corretto; solo nota per allineamento documentazione.",
+    "In reader-header.tsx la label 'deep-dive-page-label' è renderizzata comunque con opacity:0 in intro (stile labelHidden) — corretto e verificato."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "N/A (frontend-only)", "frontend": "8.5/9 (T6 parziale per limitazione web)" },
+  "seed_data_creation": "Nessuno. Guest user creato al volo tramite flusso ospite dell'app.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Per T6 (edge-swipe) preferire test manuale in Expo Go: swipe da bordo sinistro verso destra durante la lettura di un capitolo deve tornare a Home e la ResumeCard compare in Home. Il flusso di onboarding richiede: profile viewport → click 'Continue as guest' → click '[data-testid=chip-all]' o qualsiasi 'chip-<catId>' → click '[data-testid=onboarding-continue]'. Il pressable di apertura card è '[data-testid=home-story-<storyId>-open]', non '[data-testid=<storyId>-open]'.",
+  "rca_of_issue": "N/A — nessun bug trovato nei 9 punti di accettazione del redesign della lettura."
+}
