@@ -335,3 +335,9 @@ Solo presentazione (nessuna modifica backend/contenuti):
 ## Onboarding a schermo intero senza scroll (giugno 2026, fork)
 - Profilo/accesso (`onboarding-profile.tsx`, `auth-block.tsx`): fattore di compattezza `k` (0…1) dall'altezza utile (altezza − insets; 640→860): logo, titolo, sottotitolo, spaziatori, padding schede, chip/select, pulsanti Google/Apple, CTA e puntini si stringono in modo continuo. Nulla rimosso. Lo ScrollView resta solo come rete di sicurezza (bounces off) per la tastiera.
 - Argomenti (`onboarding.tsx`, `topic-picker.tsx` prop `fit`, `category-grid.tsx` prop `maxHeight`, `category-artwork.tsx` prop `bannerSize`): niente ScrollView; il picker è flex e la griglia misura l'altezza rimasta → la tessera "Qualsiasi" si abbassa (90→68) e le tessere ricevono un'altezza esplicita con oggetto 3D ridimensionato. Footer più compatto. Verificato senza scroll a 390×763 e 360×660.
+
+## Anticipazione capitolo, transizione, cornice adattiva (giugno 2026, fork)
+- `reader-section.tsx`: ogni capitolo = una schermata (`minHeight` = pageH − headerBottom); in fondo (`marginTop: auto`) l'anticipazione del capitolo seguente: divisore + numero + occhiello + titolo intero attenuati, MAI il testo (`reader-chapter-preview-N`). Rimosso il reveal animato (ChapterReveal) e il divisore tra sezioni.
+- `deep-dive/[id].tsx`: con arrivo da transizione (`morph=1`) capitoli e fine si montano solo dopo la dissolvenza del livello (`chaptersReady`), per non rubare fotogrammi allo scambio.
+- `story-morph.tsx`: il livello usa la propria altezza misurata (`layerH`, onLayout) invece di `useWindowDimensions` → geometria identica al lettore su Android; il rientro parte dopo `InteractionManager.runAfterInteractions` + 2 rAF.
+- `src/screen-corners.ts` (`useScreenCornerRadius`, expo-device): raggio angoli schermo per modello (tabella iPhone modelId; famiglie Android Samsung/Pixel/…; fallback da insets); `reader-frame.tsx` usa quel raggio. Web = 28.

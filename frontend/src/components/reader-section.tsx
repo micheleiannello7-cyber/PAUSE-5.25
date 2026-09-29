@@ -4,7 +4,6 @@
 // tema, titolo, corpo in paragrafi brevi. Nessun contenuto extra.
 import { View, Text, StyleSheet } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import Animated, { Extrapolation, interpolate, SharedValue, useAnimatedStyle, useDerivedValue, useSharedValue } from "react-native-reanimated";
 
 import { Chapter, Story } from "@/src/api";
 import { makeStyles, useTheme, spacing, typography, withAlpha } from "@/src/theme";
@@ -56,54 +55,26 @@ export function stripStepPrefix(title: string): string {
   return title.replace(/^\s*(passo|step)\s*\d+\s*[—–\-:·]\s*/i, "").trim() || title;
 }
 
-export type ChapterReveal = {
-  scrollY: SharedValue<number>;
-  /** Inizio di ogni sezione nello scroll (misurato a layout). */
-  tops: SharedValue<number[]>;
-  index: number;
-  pageH: SharedValue<number>;
-  headerBottom: number;
-};
-
-// Un capitolo entra nell'ambiente progressivamente: finché il suo inizio è
-// nella parte bassa dello schermo si intravedono solo numero, occhiello e
-// titolo, attenuati — un'anticipazione del prossimo capitolo — e il testo
-// compare solo quando ci si arriva. Il capitolo che si sta leggendo è sempre pieno.
-export function ChapterSection({ chapter, story, eyebrow, reveal }: { chapter: Chapter; story: Story; eyebrow: string; reveal?: ChapterReveal }) {
+// Un capitolo occupa una schermata: in alto numero, occhiello, titolo e testo;
+// in fondo — se c'è un capitolo dopo — solo il suo numero e il titolo intero,
+// attenuati: un'anticipazione, mai il testo. Il capitolo successivo vero inizia
+// alla schermata seguente (la lettura avanza a capitoli, non a scorrimento).
+export function ChapterSection({ chapter, story, eyebrow, next, minHeight }: {
+  chapter: Chapter; story: Story; eyebrow: string;
+  /** Capitolo seguente (anticipazione in fondo alla schermata). */
+  next?: Chapter | null;
+  /** Altezza della schermata di lettura: il capitolo la riempie e l'anticipazione poggia sul fondo. */
+  minHeight?: number;
+}) {
   const styles = useStyles();
   const { colors } = useTheme();
   // Un solo colore per tutti i capitoli di tutte le storie: l'accento del tema
   // corrente dell'app (base = cyan), mai la categoria della storia.
   const tint = colors.brand;
   const number = String(chapter.number).padStart(2, "0");
-  const none = useSharedValue(0);
-  const noTops = useSharedValue<number[]>([]);
-  const r = reveal;
-  const scrollY = r?.scrollY ?? none, tops = r?.tops ?? noTops, pageH = r?.pageH ?? none;
-  const index = r?.index ?? 0, headerBottom = r?.headerBottom ?? 0;
-  // Distanza (in schermo) dell'inizio del capitolo dalla linea sotto la barra: 0 = è in alto.
-  const dist = useDerivedValue(() => {
-    if (!r) return 0;
-    const top = tops.value[index];
-    if (top === undefined || top <= 0) return 0;
-    return top - scrollY.value - headerBottom;
-  });
-  const head = useAnimatedStyle(() => {
-    const h = Math.max(1, pageH.value);
-    return { opacity: r ? interpolate(dist.value, [h * 0.32, h * 0.72], [1, 0.42], Extrapolation.CLAMP) : 1 };
-  });
-  // Il paragrafo compare appena il capitolo si avvicina e, mentre appare,
-  // sale morbidamente verso il suo titolo (parte ~44 pt più in basso).
-  const body = useAnimatedStyle(() => {
-    const h = Math.max(1, pageH.value);
-    return {
-      opacity: r ? interpolate(dist.value, [h * 0.28, h * 0.62], [1, 0], Extrapolation.CLAMP) : 1,
-      transform: [{ translateY: r ? interpolate(dist.value, [h * 0.24, h * 0.66], [0, 44], Extrapolation.CLAMP) : 0 }],
-    };
-  });
   return (
-    <View style={styles.section} testID={`deep-dive-chapter-${chapter.number}`}>
-      <Animated.View style={head}>
+    <View style={[styles.section, minHeight ? { minHeight } : null]} testID={`deep-dive-chapter-${chapter.number}`}>
+      <View>
         {/* Numero grande e quasi trasparente: elemento grafico, non informazione. */}
         <Text style={[styles.bigNumber, { color: withAlpha(tint, 0.13) }]} pointerEvents="none" testID={`reader-chapter-number-${chapter.number}`}>{number}</Text>
         <Text style={[styles.eyebrow, { color: tint }]} testID={`reader-chapter-eyebrow-${chapter.number}`}>{eyebrow.toUpperCase()}</Text>
@@ -113,12 +84,27 @@ export function ChapterSection({ chapter, story, eyebrow, reveal }: { chapter: C
           highlightColor={tint}
           style={styles.title}
         />
-      </Animated.View>
-      <Animated.View style={[styles.body, body]}>
+      </View>
+      <View style={styles.body}>
         {splitParagraphs(chapter.body).map((p, i) => (
           <Text key={i} style={styles.paragraph}>{p}</Text>
         ))}
-      </Animated.View>
+      </View>
+      {next ? (
+        <View style={styles.preview} testID={`reader-chapter-preview-${next.number}`}>
+          <SectionDivider color={tint} />
+          <View style={styles.previewHead}>
+            <Text style={[styles.previewNumber, { color: withAlpha(tint, 0.1) }]} pointerEvents="none">{String(next.number).padStart(2, "0")}</Text>
+            <Text style={[styles.eyebrow, styles.previewEyebrow, { color: withAlpha(tint, 0.55) }]}>{eyebrow.toUpperCase()}</Text>
+            <HighlightedTitle
+              title={stripStepPrefix(next.title)}
+              highlight={story.highlight_words}
+              highlightColor={withAlpha(tint, 0.55)}
+              style={[styles.title, styles.previewTitle]}
+            />
+          </View>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -140,5 +126,14 @@ const useStyles = makeStyles((colors) => ({
     color: colors.textWarm, fontFamily: typography.displayBold, fontSize: 31, lineHeight: 37, letterSpacing: -0.7,
   },
   body: { gap: spacing.md + 2, marginTop: spacing.sm },
+  // Anticipazione del capitolo seguente: sul fondo della schermata, attenuata.
+  preview: { marginTop: "auto", paddingTop: spacing.xl },
+  previewHead: { paddingTop: spacing.md },
+  previewNumber: {
+    position: "absolute", top: -spacing.md, left: -3,
+    fontFamily: typography.displayBold, fontSize: 72, lineHeight: 76, letterSpacing: -3,
+  },
+  previewEyebrow: { paddingTop: spacing.lg, marginBottom: spacing.xs },
+  previewTitle: { fontSize: 26, lineHeight: 31, opacity: 0.5 },
   paragraph: { color: colors.textWarmSecondary, fontFamily: typography.body, fontSize: 17.5, lineHeight: 31, letterSpacing: 0.1 },
 }));

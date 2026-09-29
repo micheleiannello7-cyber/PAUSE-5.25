@@ -10,7 +10,7 @@
 // Solo trasformazioni e opacità sugli elementi in movimento (niente layout a
 // ogni frame): fluido anche su Android e sul web.
 import { useEffect, useRef, useState } from "react";
-import { StyleSheet, View, useWindowDimensions } from "react-native";
+import { InteractionManager, StyleSheet, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import Ionicons from "@react-native-vector-icons/ionicons";
@@ -75,7 +75,13 @@ export function StoryMorph({ story, from: fromProp, premium, ready, onCommit, di
   const styles = useStyles();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
-  const { width: winW, height: winH } = useWindowDimensions();
+  const { width: winW, height: windowH } = useWindowDimensions();
+  // Altezza reale del livello (= area del lettore sotto): su Android la
+  // finestra riportata può differire dall'area disegnata (barre di sistema);
+  // usando la misura vera, la schermata finale del livello coincide al pixel
+  // con l'apertura del lettore e lo scambio non produce alcun salto.
+  const [layerH, setLayerH] = useState<number | null>(null);
+  const winH = layerH ?? windowH;
   const host = useMorphHost();
   const closing = direction === "close";
   // Chiusura: la cornice d'arrivo è quella reale della card sulla Home, riletta
@@ -199,10 +205,16 @@ export function StoryMorph({ story, from: fromProp, premium, ready, onCommit, di
     if (fadeIn) veil.value = withTiming(1, { duration: FADE_IN_MS, easing: Easing.out(Easing.quad) });
     const slideLead = offsetX !== 0 ? Math.round(SLIDE_BACK_MS * 0.7) : 0;
     let cancelled = false;
+    // Il rientro parte solo quando la Home sotto ha finito il suo lavoro (nessuna
+    // interazione/transizione in corso e due fotogrammi disegnati): l'animazione
+    // non deve mai partire mentre il thread è ancora occupato a montare la Home.
     const start = () => {
       if (cancelled) return;
-      homeReturnRef.current?.();
-      p.value = withTiming(0, { duration: MORPH_DURATION, easing: MORPH_EASING }, (done) => { if (done) runOnJS(hostClear)(); });
+      InteractionManager.runAfterInteractions(() => requestAnimationFrame(() => requestAnimationFrame(() => {
+        if (cancelled) return;
+        homeReturnRef.current?.();
+        p.value = withTiming(0, { duration: MORPH_DURATION, easing: MORPH_EASING }, (done) => { if (done) runOnJS(hostClear)(); });
+      })));
     };
     const commit = setTimeout(async () => {
       if (offsetX !== 0) slideX.value = withTiming(0, { duration: SLIDE_BACK_MS, easing: Easing.out(Easing.cubic) });
@@ -214,12 +226,10 @@ export function StoryMorph({ story, from: fromProp, premium, ready, onCommit, di
       if (cancelled) return;
       if (fresh && fresh.width > 0 && fresh.height > 0 && !sameRect(fresh, fromProp)) {
         // Nuova meta: si applica a livello fermo (p = 1, nessun elemento dipende
-        // ancora dalla cornice) e si parte al fotogramma successivo.
+        // ancora dalla cornice) e si parte quando è stata disegnata.
         setFrom(fresh);
-        requestAnimationFrame(() => requestAnimationFrame(start));
-      } else {
-        start();
       }
+      start();
     }, lead);
     const safety = setTimeout(hostClear, lead + SLIDE_BACK_MS + HOME_SETTLE_MAX_MS + MORPH_DURATION + 1500);
     return () => { cancelled = true; clearTimeout(commit); clearTimeout(safety); };
@@ -268,7 +278,9 @@ export function StoryMorph({ story, from: fromProp, premium, ready, onCommit, di
   }));
 
   return (
-    <Animated.View style={[StyleSheet.absoluteFill, veilStyle]} testID="story-morph">
+    <Animated.View style={[StyleSheet.absoluteFill, veilStyle]} testID="story-morph"
+      onLayout={(e) => { const h = Math.round(e.nativeEvent.layout.height); if (h > 0 && h !== layerH && !started.current) setLayerH(h); }}>
+      {layerH == null ? null : <>
       {/* Fondo del lettore: compare mentre la Home fa spazio. */}
       <Animated.View style={[StyleSheet.absoluteFill, bgStyle]} pointerEvents="none">
         <ReaderAtmosphere animated={false} />
@@ -331,6 +343,7 @@ export function StoryMorph({ story, from: fromProp, premium, ready, onCommit, di
       </Animated.View>
       {/* Cornice luminosa del lettore: compare con il fondo. */}
       <Animated.View style={[StyleSheet.absoluteFill, bgStyle]} pointerEvents="none"><ReaderFrame /></Animated.View>
+      </>}
     </Animated.View>
   );
 }

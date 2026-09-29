@@ -6,17 +6,20 @@
 import { StyleSheet, View } from "react-native";
 
 import { makeStyles, useTheme, withAlpha } from "@/src/theme";
+import { useScreenCornerRadius } from "@/src/screen-corners";
 
 export function ReaderFrame({ opacity = 1 }: { opacity?: number }) {
   const styles = useStyles();
   const { colors } = useTheme();
   const tint = colors.atmosFrame;
+  // La linea segue il vetro del telefono: raggio degli angoli del dispositivo.
+  const radius = useScreenCornerRadius();
   return (
     <View style={[StyleSheet.absoluteFill, styles.wrap, { opacity }]} pointerEvents="none" testID="reader-frame">
       <View
         style={[
           StyleSheet.absoluteFill, styles.line,
-          { borderColor: withAlpha(tint, 0.42), boxShadow: `0px 0px 18px 0px ${withAlpha(tint, 0.22)}, inset 0px 0px 22px 0px ${withAlpha(colors.cyan, 0.10)}` as any },
+          { borderRadius: radius, borderColor: withAlpha(tint, 0.42), boxShadow: `0px 0px 18px 0px ${withAlpha(tint, 0.22)}, inset 0px 0px 22px 0px ${withAlpha(colors.cyan, 0.10)}` as any },
         ]}
       />
     </View>
@@ -25,5 +28,5 @@ export function ReaderFrame({ opacity = 1 }: { opacity?: number }) {
 
 const useStyles = makeStyles(() => ({
   wrap: { zIndex: 40, elevation: 40 },
-  line: { borderWidth: 1, borderRadius: 30 },
+  line: { borderWidth: 1 },
 }));

@@ -1,0 +1,92 @@
+{
+  "summary": "Frontend-only verification of the strict per-section paging reader + next-chapter preview + vibration switch + onboarding no-scroll on /deep-dive/sky-blue-sunset-orange, /(tabs)/discover, /(tabs)/profile, /onboarding. Viewport 390x844 (reader/morph/profile) + 390x763 & 360x660 (onboarding fit). All 7 acceptance groups PASS, no console errors, no pageerrors. Only cosmetic warnings observed (textShadow* deprecated, pointerEvents prop deprecated, Reanimated 'linear easing fallback on web').",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "acceptance_matrix": [
+    {
+      "id": "A",
+      "name": "Reader paging: wheel = one section per notch, snap immediately, labels 01/06..06/06",
+      "result": "PASS",
+      "notes": "deep-dive-scroll has scrollEnabled=false (overflow-y: hidden). page.mouse.wheel(0,120) with 1.1s pauses: 0 -> 788 -> 1568 -> 2348 -> 3128 -> 3908 -> 4688 -> 5460 (ending). Deltas ~780px = one section (chapter height incl. preview). Header labels observed 01/06, 02/06, 03/06, 04/06, 05/06, 06/06, 06/06. Wheel up (0,-120) reverses one section per notch (4688 -> 3908 -> 3128). Lock ~550ms respected (no double-step)."
+    },
+    {
+      "id": "B",
+      "name": "Mouse drag advances one section DURING drag once >28px",
+      "result": "PASS",
+      "notes": "Drag from (195,600) up in 5x25px steps: mid-drag @75px moved scrollTop=57 (section change already committed by pagePan onUpdate at STEP_TRIGGER=28); after mouse.up the smooth scrollTo animation lands at 788 (exactly one section). Confirms pagePan.onUpdate runs `step()` before release."
+    },
+    {
+      "id": "C",
+      "name": "Next-chapter preview at bottom on chapters 1..5; none on ch 6",
+      "result": "PASS",
+      "notes": "On chapter 1 the [data-testid=reader-chapter-preview-2] is present, fully inside the viewport (top=691, bottom=812, viewportH=844 -> insideViewport=true). Preview text = '02CHAPTERWhy the Sky Is Blue' (chapter number + 'CHAPTER' eyebrow + full title only). CH2 body starts with 'The shorter waves, namely blue and violet, collide far more often with air molec...' and is NOT contained in the preview text. On chapter 6: [data-testid=reader-chapter-preview-7] not present (query returns false). All 6 chapter sections resolved in DOM."
+    },
+    {
+      "id": "D",
+      "name": "Reader ending + back",
+      "result": "PASS",
+      "notes": "After chapter 6 one extra wheel reaches [data-testid=deep-dive-page-end] (Like/Save/Share/Continue visible in screenshot). One more wheel keeps scrollTop=5460 -> 5460 (no motion). Click on [data-testid=reader-back] navigates back to /discover cleanly."
+    },
+    {
+      "id": "E",
+      "name": "Home -> reader morph and back",
+      "result": "PASS",
+      "notes": "Tap [data-testid=home-story-v4-lez-cloud-open] on /discover -> URL becomes /deep-dive/v4-lez-cloud?morph=1&rect=26,58,338,362. morph-host disappears within 500ms (well below 3s budget). deep-dive-page-chapter-1 and deep-dive-page-end exist in DOM within ~1s. Click reader-back -> /discover, morph-host absent after commit. No console errors during the transition."
+    },
+    {
+      "id": "F",
+      "name": "Profile Vibration switch (haptics-switch)",
+      "result": "PASS",
+      "notes": "/(tabs)/profile: [data-testid=haptics-switch] initial aria-checked=true. Click -> aria-checked=false and localStorage['pause.haptics.v1']='0'. Full page reload -> aria-checked stays false, localStorage remains '0' (persistence across reload confirmed). Second click -> aria-checked=true, localStorage='1'."
+    },
+    {
+      "id": "G",
+      "name": "Onboarding no-scroll at 390x763 and 360x660",
+      "result": "PASS",
+      "notes": "Profile step 390x763: onboarding-profile-scroll scrollHeight=clientHeight=763 (no overflow), onboarding-profile-continue bottom=693 (fully visible). Topics step 390x763: onboarding-selection-scroll scrollHeight=clientHeight=671 (no overflow), gridBottom=647 <= scBottom=671 (grid inside container), 13 chips (12 category + chip-all), onboarding-continue visible. Same at 360x660: profile 660/660, topics 568/568, gridBottom=567 <= 568, 13 chips, CTA visible. chip-scienza toggles aria-checked false -> true on click at both viewports."
+    },
+    {
+      "id": "H",
+      "name": "Regression /explore + profile + no red overlay + no console errors",
+      "result": "PASS",
+      "notes": "/(tabs)/explore renders with 13 chips (TopicPicker grid); no [data-testid=error-screen]. /(tabs)/profile renders (haptics-switch reachable). Console during reader route: only deprecation warnings (textShadow*, pointerEvents) and Reanimated 'linear easing fallback on web' (harmless); zero errors, zero pageerrors."
+    }
+  ],
+  "console_signals": {
+    "errors": 0,
+    "pageerrors": 0,
+    "warnings_noise_only": [
+      "\"textShadow*\" style props are deprecated. Use \"textShadow\".",
+      "props.pointerEvents is deprecated. Use style.pointerEvents",
+      "[Reanimated] Selected easing is not currently supported on web. Using linear easing instead."
+    ]
+  },
+  "test_report_links": [
+    "browser_automation inline scripts (2 runs): reader paging + preview + ending; drag + morph + haptics + onboarding-fit + explore regression"
+  ],
+  "action_items": [
+    "None functional. Optional cleanup: migrate 'textShadow*' style props and 'props.pointerEvents' usages to the new signatures to silence deprecation warnings (React Native Web 0.19+ future compatibility)."
+  ],
+  "critical_code_review_comments": [
+    "app/deep-dive/[id].tsx L245-268 web wheel handler: acc threshold 40 with 160ms reset window + 550ms lockUntil correctly enforces one-section-per-notch and prevents double-step; test confirms exact +780px per notch on 844h device.",
+    "app/deep-dive/[id].tsx L197-220 step(): targets = [0, ...tops - headerBottom + spacing.sm], with two-phase overflow (80% viewH) for sections taller than viewport + OVERFLOW_TOL. On sky-blue chapters (~780px each) none required a partial step, so single jumps are clean.",
+    "app/deep-dive/[id].tsx L227-242 pagePan: activeOffsetY([-6,6]) + failOffsetX([-18,18]) preserves horizontal swipe-back; STEP_TRIGGER=28 confirmed to fire onUpdate (mid-drag scrollTop moved before mouse.up).",
+    "src/components/reader-section.tsx L93-107 preview block renders ONLY number + eyebrow + title of the next chapter (no body). Visual attenuation via withAlpha(tint, 0.55/0.1) + previewTitle.opacity=0.5. Verified programmatically that preview text excludes chapter body content.",
+    "src/haptics.ts L14-27 setHapticsEnabled: writes AsyncStorage key 'pause.haptics.v1' as '0'/'1'; verified in-browser via localStorage. Module-level init reads the flag on module import; component subscribes via useHapticsEnabled with listeners set. Consider gating the module-level AsyncStorage.getItem() with a try/catch (already present via .catch(() => {})) - fine.",
+    "app/onboarding.tsx L178-184 topics 'fit' mode wraps TopicPicker in fitArea (flex:1, minHeight:0) so category grid uses remaining height without ScrollView; measured with scrollHeight==clientHeight at 390x763 and 360x660. Good.",
+    "app/(tabs)/profile.tsx L280-288 Switch uses aria-checked binding and testID='haptics-switch' explicitly; onValueChange also fires Haptics.selectionAsync when turning ON, which is guarded by the same flag - no side effect on web.",
+    "No deprecated Expo packages detected in tested files (expo-haptics, expo-sharing, react-native-view-shot in use; no expo-av / expo-barcode-scanner / expo-background-fetch)."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "N/A (frontend-only)", "frontend": "7/7 acceptance groups PASS (A/B/C/D/E/F/G) + regression (H) PASS" },
+  "seed_data_creation": "None. Guest session; localStorage 'pause.onboarded.v2'='1' set via addInitScript to bypass onboarding for reader/profile/morph tests, and removed to enter /onboarding for fit tests.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Strict paging replaced iter1-6 snap-to-nearest. Key facts: (1) [data-testid=deep-dive-scroll] has overflow-y:hidden; do NOT set scrollTop directly - dispatch wheel via page.mouse.wheel(0,120) OR call GestureDetector via mouse.down/move/up. (2) Wait >=1.0s between notches (550ms lock + smooth scrollTo). (3) On 390x844 with sky-blue-sunset-orange each section is ~780px tall; targets in order: 0, 788, 1568, 2348, 3128, 3908, 4688, ending 5460. (4) Header progress label matches /^\\d{2}\\s*\\/\\s*\\d{2}$/. (5) Preview testID is 'reader-chapter-preview-<next>' and appears at the bottom of the current chapter - contains only number+CHAPTER eyebrow+full title. (6) morph-host tears down within ~500ms once the reader intro is laid out. (7) haptics localStorage key is 'pause.haptics.v1' ('0' or '1'). (8) Onboarding profile fits into onboarding-profile-scroll (no overflow) and topics into onboarding-selection-scroll with 13 chips (12 categories + chip-all).",
+  "rca_of_issue": "N/A - no bugs found."
+}

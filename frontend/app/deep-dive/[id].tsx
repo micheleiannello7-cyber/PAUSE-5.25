@@ -26,7 +26,7 @@ import { ReaderFrame } from "@/src/components/reader-frame";
 import { ReaderIntro, readerCoverFrame } from "@/src/components/reader-intro";
 import { StoryAudioProvider, AudioSheet, AudioMiniBadge, IntroListenButton } from "@/src/components/story-audio-player";
 import { ReaderHeader, READER_HEADER_H } from "@/src/components/reader-header";
-import { ChapterSection, SectionDivider } from "@/src/components/reader-section";
+import { ChapterSection } from "@/src/components/reader-section";
 import { ReaderEnding } from "@/src/components/reader-ending";
 import { Screen } from "@/src/components/screen";
 import { StoryShareCard, SHARE_CARD_WIDTH } from "@/src/components/story-share-card";
@@ -78,6 +78,17 @@ export default function DeepDive() {
   useEffect(() => {
     if (morph === "1" && !morphHost.active) navigation.setOptions({ animation: "fade", animationDuration: 260 });
   }, [morph, morphHost.active, navigation]);
+  // Arrivo con la transizione: si monta prima solo l'apertura (identica al
+  // livello di transizione, quindi leggera da disegnare); capitoli e fine si
+  // montano appena il livello si è dissolto, così nessun lavoro pesante cade
+  // dentro l'animazione o nello scambio. Apertura diretta su un capitolo o
+  // senza transizione: tutto subito.
+  const [chaptersReady, setChaptersReady] = useState(morph !== "1" || start === "1");
+  useEffect(() => {
+    if (chaptersReady || morphHost.active) return;
+    const timer = setTimeout(() => setChaptersReady(true), 40);
+    return () => clearTimeout(timer);
+  }, [chaptersReady, morphHost.active]);
   const completedRef = useRef<string | null>(null);
   const shareRef = useRef<View>(null);
   const startedAtRef = useRef<number>(Date.now());
@@ -454,15 +465,13 @@ export default function DeepDive() {
             listen={isPremium ? <IntroListenButton onListen={openAudio} style={styles.listen} /> : null}
             onLayout={() => setIntroMeasured(true)} />
 
-          {story.chapters.map((c, i) => (
+          {chaptersReady ? story.chapters.map((c, i) => (
             <View key={c.number} onLayout={(e) => onSectionLayout(i, e)} testID={`deep-dive-page-chapter-${c.number}`}>
-              {i > 0 ? <SectionDivider color={colors.brand} /> : null}
-              <ChapterSection chapter={c} story={story} eyebrow={t.chapter}
-                reveal={{ scrollY, tops: topsSV, index: i, pageH: pageHSV, headerBottom }} />
+              <ChapterSection chapter={c} story={story} eyebrow={t.chapter} next={story.chapters[i + 1] ?? null} minHeight={pageH - headerBottom} />
             </View>
-          ))}
+          )) : null}
 
-          <View onLayout={(e) => onSectionLayout(chapterCount, e)} style={[styles.ending, { minHeight: pageH - headerBottom }]} testID="deep-dive-page-end">
+          {chaptersReady ? <View onLayout={(e) => onSectionLayout(chapterCount, e)} style={[styles.ending, { minHeight: pageH - headerBottom }]} testID="deep-dive-page-end">
             <ReaderEnding
               story={story}
               liked={liked}
@@ -473,7 +482,7 @@ export default function DeepDive() {
               onNext={onNext}
               bottomInset={insets.bottom}
             />
-          </View>
+          </View> : null}
         </Animated.ScrollView>
         </View>
         </GestureDetector>
